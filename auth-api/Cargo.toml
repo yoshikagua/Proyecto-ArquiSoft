@@ -1,0 +1,27 @@
+[package]
+name = "auth-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+# Añadimos axum-extra para manejar las cookies que daban error
+axum-extra = { version = "0.9", features = ["cookie"] }
+time = "0.3"
+tokio = { version = "1", features = ["full"] }
+# Importante: habilitar derive para que Claims funcione
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+dotenv = "0.15"
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "migrate"] }
+bcrypt = "0.15"
+jsonwebtoken = "9"
+# MUY IMPORTANTE: Añadir feature "serde" a chrono para que DateTime sea compatible
+chrono = { version = "0.4", features = ["serde"] }
+# MUY IMPORTANTE: Añadir feature "serde" a uuid
+uuid = { version = "1", features = ["v4", "serde"] }
+tower-http = { version = "0.5", features = ["trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+thiserror = "1"
