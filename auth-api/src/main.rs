@@ -6,6 +6,7 @@ mod models;
 
 use axum::{
     routing::{get, post},
+    middleware,
     Router,
 };
 use dotenv::dotenv;
@@ -37,8 +38,14 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/register", post(handlers::register))
         .route("/login", post(handlers::login))
-        .route("/protected", get(handlers::protected))
         .route("/logout", post(handlers::logout))
+        .nest(
+            "/api",
+            Router::new()
+                .route("/me", get(handlers::get_me))
+                .route("/protected", get(handlers::protected))
+                .layer(middleware::from_fn(handlers::auth_middleware)), // Aplicamos el middleware aquí
+        )
         .with_state(db_pool)
         .layer(TraceLayer::new_for_http());
 

@@ -6,6 +6,7 @@ use axum::{
     http::{StatusCode, header},
     middleware::Next,
     response::{IntoResponse, Response},
+    Extension,
     Json,
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
@@ -96,4 +97,24 @@ pub async fn auth_middleware(
 
 pub async fn protected() -> Result<impl IntoResponse, StatusCode> {
     Ok(Json(json!({ "message": "Access granted to protected route" })))
+}
+
+pub async fn get_me(
+    State(pool): State<PgPool>,
+    Extension(user_id): Extension<String>, // Extraemos el ID del middleware
+) -> Result<impl IntoResponse, ApiError> {
+    // Buscamos al usuario en la DB por su ID
+    // Convertimos el string a UUID si es necesario según tu modelo
+    let user_uuid = uuid::Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::InternalServerError)?;
+
+    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+        .bind(user_uuid)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or(ApiError::InternalServerError)?; // O UserNotFound si lo tienes
+
+    // Devolvemos el usuario (Axum/Serde se encargará de no enviar el password_hash 
+    // si usas #[serde(skip_serializing)] en tu modelo)
+    Ok(Json(user))
 }

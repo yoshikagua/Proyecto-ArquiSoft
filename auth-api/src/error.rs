@@ -17,15 +17,22 @@ pub enum ApiError {
     InvalidCredentials,
     #[error("Email already exists")]
     EmailAlreadyExists,
+    #[error("User not found")]
+    UserNotFound,
+    #[error("Internal server error")]
+    InternalServerError,
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
-            ApiError::InvalidCredentials => (StatusCode::UNAUTHORIZED, "Invalid credentials"),
-            ApiError::EmailAlreadyExists => (StatusCode::CONFLICT, "Email already exists"),
-            _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
+            ApiError::InvalidCredentials => (StatusCode::UNAUTHORIZED, self.to_string()),
+            ApiError::EmailAlreadyExists => (StatusCode::CONFLICT, self.to_string()),
+            ApiError::UserNotFound => (StatusCode::NOT_FOUND, self.to_string()),
+            // Para errores de base de datos o internos, ocultamos el detalle técnico al usuario
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, "An unexpected error occurred".to_string()),
         };
+        
         let body = Json(json!({ "error": error_message }));
         (status, body).into_response()
     }
