@@ -5,7 +5,7 @@ mod handlers;
 mod models;
 
 use axum::{
-    routing::{get, post},
+    routing::{get, post,patch},
     middleware,
     Router,
 };
@@ -43,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
             "/api",
             Router::new()
                 .route("/me", get(handlers::get_me))
+                .route("/me", patch(handlers::update_me))
                 .route("/protected", get(handlers::protected))
                 .layer(middleware::from_fn(handlers::auth_middleware)), // Aplicamos el middleware aquí
         )

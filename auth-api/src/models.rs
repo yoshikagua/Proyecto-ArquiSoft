@@ -33,3 +33,9 @@ pub struct Claims {
     pub sub: String, // user id
     pub exp: usize,  // expiration (Unix timestamp)
 }
+
+#[derive(serde::Deserialize)]
+pub struct UpdateUserRequest {
+    pub email: Option<String>,
+    // Aquí podrías añadir: pub name: Option<String>, etc.
+}

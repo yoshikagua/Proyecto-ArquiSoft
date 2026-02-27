@@ -1,6 +1,6 @@
 use crate::auth::{create_jwt, hash_password, verify_password, validate_jwt};
 use crate::error::ApiError;
-use crate::models::{AuthResponse, LoginRequest, RegisterRequest, User};
+use crate::models::{AuthResponse, LoginRequest, RegisterRequest, User,UpdateUserRequest};
 use axum::{
     extract::{State, Request}, // Importamos Request desde extract
     http::{StatusCode, header},
@@ -116,5 +116,44 @@ pub async fn get_me(
 
     // Devolvemos el usuario (Axum/Serde se encargará de no enviar el password_hash 
     // si usas #[serde(skip_serializing)] en tu modelo)
+    Ok(Json(user))
+}
+
+pub async fn update_me(
+    State(pool): State<PgPool>,
+    Extension(user_id): Extension<String>,
+    Json(req): Json<UpdateUserRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    let user_uuid = uuid::Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::InternalServerError)?;
+
+    // Si el usuario envió un nuevo email, verificamos que no esté en uso
+    if let Some(ref new_email) = req.email {
+        let exists = sqlx::query("SELECT id FROM users WHERE email = $1 AND id != $2")
+            .bind(new_email)
+            .bind(user_uuid)
+            .fetch_optional(&pool)
+            .await?;
+        
+        if exists.is_some() {
+            return Err(ApiError::EmailAlreadyExists);
+        }
+    }
+
+    // Actualizamos en la base de datos
+    // Usamos COALESCE para mantener el valor actual si el campo es NULL en el JSON
+    let user = sqlx::query_as::<_, User>(
+        r#"
+        UPDATE users 
+        SET email = COALESCE($1, email)
+        WHERE id = $2
+        RETURNING *
+        "#
+    )
+    .bind(&req.email)
+    .bind(user_uuid)
+    .fetch_one(&pool)
+    .await?;
+
     Ok(Json(user))
 }
