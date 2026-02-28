@@ -9,7 +9,7 @@ use axum::{
     Extension,
     Json,
 };
-use axum_extra::extract::cookie::{Cookie, CookieJar};
+// use axum_extra::extract::cookie::{Cookie, CookieJar}; // Removed to resolve axum version conflict
 use serde_json::json;
 use sqlx::PgPool;
 use time::Duration;

@@ -1,20 +1,47 @@
-mod auth;
-mod db;
-mod error;
+mod state;
 mod handlers;
-mod models;
+mod services;
+mod dto;
+mod errors;
+
 
 use axum::{
-    routing::{get, post,patch},
-    middleware,
+    routing::{post},
     Router,
 };
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+use crate::dto::{register_request::RegisterRequest, recovery_request::RecoveryRequest, verify_recovery_code_request::VerifyRecoveryCodeRequest};
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        handlers::auth_handler::register,
+        handlers::auth_handler::recover_password,
+        handlers::auth_handler::verify_recovery_code,
+    ),
+    components(schemas(RegisterRequest, RecoveryRequest, VerifyRecoveryCodeRequest)),
+    tags(
+        (name = "auth", description = "Authentication endpoints")
+    )
+)]
+struct ApiDoc;
 use dotenv::dotenv;
 use sqlx::postgres::PgPoolOptions;
 use std::env;
 use std::net::SocketAddr;
-use tower_http::trace::TraceLayer;
+// use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+mod config;
+
+use state::AppState;
+use services::{
+    auth_service::AuthService,
+    recovery_service::RecoveryService,
+    email_service::EmailService,
+};
+use std::sync::Arc;
+
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -27,36 +54,53 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     dotenv().ok();
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db_pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await?;
 
-    sqlx::migrate!().run(&db_pool).await?;
+    let database_url =
+        env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
+    let db_pool = Arc::new(
+        PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&database_url)
+            .await?
+    );
+
+
+    // ---- SERVICES ----
+    let email_config = crate::config::email_config::EmailConfig {
+        smtp_host: env::var("MAIL_SMTP_HOST").unwrap_or_else(|_| "localhost".to_string()),
+        smtp_port: env::var("MAIL_SMTP_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(1025),
+        from: env::var("MAIL_FROM").unwrap_or_else(|_| "noreply@localhost".to_string()),
+    };
+    let email_service = EmailService::new(email_config).expect("Error configurando EmailService");
+
+    let auth_service = AuthService {
+        pool: db_pool.clone(),
+        email_service: email_service.clone(),
+    };
+
+    let recovery_service = RecoveryService {
+        pool: db_pool.clone(),
+        email_service,
+    };
+
+    let app_state = AppState {
+        auth_service,
+        recovery_service,
+    };
+
+    // ---- ROUTER ----
     let app = Router::new()
-        .route("/register", post(handlers::register))
-        .route("/login", post(handlers::login))
-        .route("/logout", post(handlers::logout))
-        .nest(
-            "/api",
-            Router::new()
-                .route("/me", get(handlers::get_me))
-                .route("/me", patch(handlers::update_me))
-                .route("/protected", get(handlers::protected))
-                .layer(middleware::from_fn(handlers::auth_middleware)), // Aplicamos el middleware aquí
-        )
-        .with_state(db_pool)
-        .layer(TraceLayer::new_for_http());
+        .route("/auth/register", post(handlers::auth_handler::register))
+        .route("/auth/recover", post(handlers::auth_handler::recover_password))
+        .route("/auth/verify-recovery-code", post(handlers::auth_handler::verify_recovery_code))
+        .merge(SwaggerUi::new("/swagger").url("/api-doc/openapi.json", ApiDoc::openapi()))
+        .with_state(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    tracing::info!("listening on {}", addr);
+    println!("Listening on {}", addr);
 
-    // --- CAMBIO AQUÍ PARA AXUM 0.7 ---
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
-    // ---------------------------------
-
     Ok(())
 }

@@ -1,27 +1,33 @@
+
 [package]
 name = "auth-api"
 version = "0.1.0"
 edition = "2021"
 
+
+tokio = { version = "1.37.0", features = ["full"] }
+bcrypt = "0.15.1"
+
 [dependencies]
-axum = "0.7"
-# Añadimos axum-extra para manejar las cookies que daban error
-axum-extra = { version = "0.9", features = ["cookie"] }
-time = "0.3"
-tokio = { version = "1", features = ["full"] }
-# Importante: habilitar derive para que Claims funcione
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1"
-dotenv = "0.15"
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "migrate"] }
-bcrypt = "0.15"
-jsonwebtoken = "9"
-# MUY IMPORTANTE: Añadir feature "serde" a chrono para que DateTime sea compatible
-chrono = { version = "0.4", features = ["serde"] }
-# MUY IMPORTANTE: Añadir feature "serde" a uuid
-uuid = { version = "1", features = ["v4", "serde"] }
-tower-http = { version = "0.5", features = ["trace"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-anyhow = "1"
-thiserror = "1"
+lettre = { version = "0.11.6", features = ["tokio1-native-tls", "smtp-transport"] }
+axum = { version = "0.7.9", features = ["macros", "json", "tokio", "http1", "http2"], default-features = false }
+tokio = { version = "1.37.0", features = ["full"] }
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+dotenv = "0.15.0"
+sqlx = { version = "=0.7.4", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "migrate"], default-features = false }
+bcrypt = "0.15.1"
+jsonwebtoken = "9.3.1"
+chrono = { version = "0.4.34", features = ["serde"] }
+uuid = { version = "1.7.0", features = ["v4", "serde"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+anyhow = "1.0.82"
+thiserror = "1.0.57"
+argon2 = "0.5.3"
+password-hash = "0.5.0"
+rand = "0.8.5"
+# Swagger/OpenAPI
+utoipa = { version = "4.2.0", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "5.0.0", features = ["axum"] }
+

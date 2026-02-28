@@ -29,7 +29,6 @@ impl IntoResponse for ApiError {
             ApiError::InvalidCredentials => (StatusCode::UNAUTHORIZED, self.to_string()),
             ApiError::EmailAlreadyExists => (StatusCode::CONFLICT, self.to_string()),
             ApiError::UserNotFound => (StatusCode::NOT_FOUND, self.to_string()),
-            // Para errores de base de datos o internos, ocultamos el detalle técnico al usuario
             _ => (StatusCode::INTERNAL_SERVER_ERROR, "An unexpected error occurred".to_string()),
         };
         
