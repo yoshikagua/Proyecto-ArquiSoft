@@ -9,8 +9,8 @@ use serde_json::json;
 pub enum ApiError {
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
-    #[error("BCrypt error: {0}")]
-    Bcrypt(#[from] bcrypt::BcryptError),
+    // #[error("BCrypt error: {0}")]
+    // Bcrypt(#[from] bcrypt::BcryptError),
     #[error("JWT error: {0}")]
     Jwt(#[from] jsonwebtoken::errors::Error),
     #[error("Invalid credentials")]

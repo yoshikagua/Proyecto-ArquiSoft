@@ -1,9 +1,9 @@
-mod state;
-mod handlers;
-mod services;
-mod dto;
-mod errors;
-
+pub mod state;
+pub mod handlers;
+pub mod services;
+pub mod dto;
+pub mod errors;
+pub mod models;
 
 use axum::{
     routing::{post},
@@ -11,15 +11,26 @@ use axum::{
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use crate::dto::{register_request::RegisterRequest, recovery_request::RecoveryRequest, verify_recovery_code_request::VerifyRecoveryCodeRequest};
+use crate::dto::{
+    register_request::RegisterRequest, 
+    recovery_request::RecoveryRequest, 
+    verify_recovery_code_request::VerifyRecoveryCodeRequest,
+    login_request::LoginRequest // <-- Agrega esto
+};
 #[derive(OpenApi)]
 #[openapi(
     paths(
         handlers::auth_handler::register,
         handlers::auth_handler::recover_password,
         handlers::auth_handler::verify_recovery_code,
+        handlers::auth_handler::login,
     ),
-    components(schemas(RegisterRequest, RecoveryRequest, VerifyRecoveryCodeRequest)),
+    components(schemas(
+        RegisterRequest, 
+        RecoveryRequest, 
+        VerifyRecoveryCodeRequest,
+        LoginRequest // <-- 3. Registra el esquema aquí
+    )),
     tags(
         (name = "auth", description = "Authentication endpoints")
     )
@@ -92,6 +103,7 @@ async fn main() -> anyhow::Result<()> {
     // ---- ROUTER ----
     let app = Router::new()
         .route("/auth/register", post(handlers::auth_handler::register))
+        .route("/auth/login", post(handlers::auth_handler::login))
         .route("/auth/recover", post(handlers::auth_handler::recover_password))
         .route("/auth/verify-recovery-code", post(handlers::auth_handler::verify_recovery_code))
         .merge(SwaggerUi::new("/swagger").url("/api-doc/openapi.json", ApiDoc::openapi()))

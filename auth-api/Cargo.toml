@@ -4,30 +4,56 @@ name = "auth-api"
 version = "0.1.0"
 edition = "2021"
 
-
-tokio = { version = "1.37.0", features = ["full"] }
-bcrypt = "0.15.1"
-
 [dependencies]
-lettre = { version = "0.11.6", features = ["tokio1-native-tls", "smtp-transport"] }
-axum = { version = "0.7.9", features = ["macros", "json", "tokio", "http1", "http2"], default-features = false }
+# Web Framework
+axum = { version = "0.7.9", features = [
+  "macros",
+  "json",
+  "tokio",
+  "http1",
+  "http2",
+], default-features = false }
 tokio = { version = "1.37.0", features = ["full"] }
+
+# Base de Datos
+sqlx = { version = "0.7.4", features = [
+  "runtime-tokio-native-tls",
+  "postgres",
+  "uuid",
+  "chrono",
+  "migrate",
+  "macros",
+], default-features = false }
+
+# Serialización y Datos
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
-dotenv = "0.15.0"
-sqlx = { version = "=0.7.4", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "migrate"], default-features = false }
-bcrypt = "0.15.1"
-jsonwebtoken = "9.3.1"
 chrono = { version = "0.4.34", features = ["serde"] }
 uuid = { version = "1.7.0", features = ["v4", "serde"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-anyhow = "1.0.82"
-thiserror = "1.0.57"
+
+# Seguridad y Auth
+jsonwebtoken = "9.3.1"
 argon2 = "0.5.3"
 password-hash = "0.5.0"
+# bcrypt = "0.15.1" # Comentado: Argon2 es preferible
+
+# Email
+lettre = { version = "0.11.6", features = [
+  "tokio1-native-tls",
+  "smtp-transport",
+] }
+
+# Utilidades
+dotenv = "0.15.0"
+# dotenvy = "0.15.7"   # Cambio de dotenv a dotenvy
+anyhow = "1.0.82"
+thiserror = "1.0.57"
 rand = "0.8.5"
+
+# Logs y Trazas
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+
 # Swagger/OpenAPI
 utoipa = { version = "4.2.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "5.0.0", features = ["axum"] }
-

@@ -1,5 +1,6 @@
 use axum::{
     extract::{State, Json},
+    response::IntoResponse,
     http::StatusCode,
 };
 use tracing::{info, error};
@@ -8,6 +9,7 @@ use crate::state::AppState;
 use crate::dto::register_request::RegisterRequest;
 use crate::dto::recovery_request::RecoveryRequest;
 use crate::dto::verify_recovery_code_request::VerifyRecoveryCodeRequest;
+use crate::dto::login_request::LoginRequest;
 use crate::errors::app_error::AppError;
 #[utoipa::path(
     post,
@@ -110,4 +112,45 @@ pub async fn verify_recovery_code(
             "message": "Recovery code verified successfully"
         }))
     ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/login",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = String),
+        (status = 401, description = "Invalid credentials"),
+    ),
+    tag = "auth"
+)]
+pub async fn login(
+    State(state): State<AppState>,
+    Json(payload): Json<LoginRequest>,
+) -> impl IntoResponse {
+    info!("POST /auth/login - email: {}", payload.email);
+
+    // Validación básica
+    if payload.email.trim().is_empty() || payload.password.is_empty() {
+        return AppError::BadRequest.into_response();
+    }
+
+    match state.auth_service.login(payload).await {
+        Ok((user, token)) => {
+            info!("Login exitoso para usuario: {}", user.email);
+            (StatusCode::OK, Json(json!({
+                "token": token,
+                "user": {
+                    "id": user.user_id,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email": user.email
+                }
+            }))).into_response()
+        },
+        Err(e) => {
+            error!("Error en login: {:?}", e);
+            e.into_response()
+        }
+    }
 }
