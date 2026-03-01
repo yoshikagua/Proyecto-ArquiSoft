@@ -14,7 +14,7 @@ use crate::dto::update_user_request::{UpdateUserRequest, ResetPasswordRequest};
 use crate::errors::app_error::AppError;
 use crate::services::auth_service::Claims;
 use sqlx::Row;
-
+pub use crate::models::user_list_response::{PaginationParams, UserListResponse};
 #[utoipa::path(
     post,
     path = "/auth/recover",
@@ -315,4 +315,64 @@ pub async fn reset_password(
     tx.commit().await.map_err(|_| AppError::DatabaseError)?;
 
     Ok((StatusCode::OK, Json(json!({"message": "Password actualizada"}))))
+}
+
+#[utoipa::path(
+    get,
+    path = "/auth/users",
+    params(
+        ("limit" = Option<i64>, Query, description = "Cantidad de registros"),
+        ("offset" = Option<i64>, Query, description = "Desde qué registro empezar")
+    ),
+    responses(
+        (status = 200, description = "Lista de usuarios obtenida", body = [UserListResponse]),
+        (status = 403, description = "No autorizado")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "auth"
+)]
+pub async fn get_all_users(
+    State(state): State<AppState>,
+    claims: Claims,
+    axum::extract::Query(params): axum::extract::Query<PaginationParams>, 
+) -> Result<impl IntoResponse, AppError> {
+    
+    if claims.role != 3 {
+        return Err(AppError::Unauthorized);
+    }
+
+    // Valores por defecto si el usuario no los envía
+    let limit = params.limit.unwrap_or(10);
+    let offset = params.offset.unwrap_or(0);
+
+    let users = sqlx::query(
+        r#"
+        SELECT 
+            u.user_id, u.email, u.first_name, u.last_name, u.role_id, u.profile_info,
+            r.name as role_name
+        FROM users u
+        INNER JOIN roles r ON u.role_id = r.id
+        ORDER BY u.user_id ASC
+        LIMIT $1 OFFSET $2
+        "#
+    )
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(&*state.auth_service.pool)
+    .await
+    .map_err(|_| AppError::DatabaseError)?;
+
+    let response: Vec<UserListResponse> = users.iter().map(|row| {
+        UserListResponse {
+            id: row.get("user_id"),
+            email: row.get("email"),
+            first_name: row.get("first_name"),
+            last_name: row.get("last_name"),
+            role_id: row.get("role_id"),
+            role_name: row.get("role_name"),
+            profile_info: row.get("profile_info"),
+        }
+    }).collect();
+
+    Ok(Json(response))
 }

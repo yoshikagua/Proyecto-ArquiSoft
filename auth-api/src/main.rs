@@ -6,7 +6,7 @@ pub mod errors;
 pub mod models;
 
 use axum::{
-    routing::{post, put},
+    routing::{post, put,get},
     Router,
 };
 use utoipa::OpenApi;
@@ -28,6 +28,7 @@ use crate::dto::{
         handlers::auth_handler::get_current_user,
         handlers::auth_handler::update_user,
         handlers::auth_handler::reset_password,
+        handlers::auth_handler::get_all_users,
     ),
     components(schemas(
         RegisterRequest, 
@@ -35,7 +36,8 @@ use crate::dto::{
         VerifyRecoveryCodeRequest,
         LoginRequest,
         crate::dto::update_user_request::UpdateUserRequest,
-        crate::dto::update_user_request::ResetPasswordRequest
+        crate::dto::update_user_request::ResetPasswordRequest,
+        crate::handlers::auth_handler::UserListResponse
     )),
     tags(
         (name = "auth", description = "Authentication endpoints")
@@ -116,6 +118,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/auth/me", axum::routing::get(handlers::auth_handler::get_current_user))
         .route("/auth/users/:id", put(handlers::auth_handler::update_user))
         .route("/auth/reset-password", post(handlers::auth_handler::reset_password))
+        .route("/auth/users", get(handlers::auth_handler::get_all_users))
 
         .merge(SwaggerUi::new("/swagger").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .with_state(app_state);
