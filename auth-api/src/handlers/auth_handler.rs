@@ -12,6 +12,7 @@ use crate::dto::verify_recovery_code_request::VerifyRecoveryCodeRequest;
 use crate::dto::login_request::LoginRequest;
 use crate::errors::app_error::AppError;
 use crate::services::auth_service::Claims;
+use sqlx::Row;
 
 #[utoipa::path(
     post,
@@ -179,5 +180,44 @@ pub async fn logout(
             Json(serde_json::json!({ "message": "Sesión cerrada correctamente" }))
         ).into_response(),
         Err(e) => e.into_response(),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/auth/me",
+    responses(
+        (status = 200, description = "Datos del usuario actual"),
+        (status = 401, description = "No autorizado"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "auth"
+)]
+pub async fn get_current_user(
+    State(state): State<AppState>,
+    claims: Claims,
+) -> impl IntoResponse {
+    // Usamos query_as! solo si tenemos el entorno listo, 
+    // pero para evitar errores de conexión en el build, usamos query:
+    let user = sqlx::query(
+        "SELECT user_id, email, first_name, last_name, role_id FROM users WHERE user_id = $1"
+    )
+    .bind(claims.sub)
+    .fetch_optional(&*state.auth_service.pool)
+    .await;
+
+    match user {
+        Ok(Some(row)) => {
+            use sqlx::Row; // Importante para usar .get()
+            (StatusCode::OK, Json(json!({
+                "id": row.get::<i32, _>("user_id"),
+                "email": row.get::<String, _>("email"),
+                "first_name": row.get::<String, _>("first_name"),
+                "last_name": row.get::<String, _>("last_name"),
+                "role_id": row.get::<i32, _>("role_id")
+            }))).into_response()
+        },
+        Ok(None) => AppError::Unauthorized.into_response(),
+        Err(_) => AppError::DatabaseError.into_response(),
     }
 }

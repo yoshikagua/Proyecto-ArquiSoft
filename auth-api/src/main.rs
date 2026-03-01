@@ -25,6 +25,7 @@ use crate::dto::{
         handlers::auth_handler::verify_recovery_code,
         handlers::auth_handler::login,
         handlers::auth_handler::logout,
+        handlers::auth_handler::get_current_user,
     ),
     components(schemas(
         RegisterRequest, 
@@ -107,8 +108,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/auth/login", post(handlers::auth_handler::login))
         .route("/auth/logout", post(handlers::auth_handler::logout))
         .route("/auth/recover", post(handlers::auth_handler::recover_password))
-
         .route("/auth/verify-recovery-code", post(handlers::auth_handler::verify_recovery_code))
+        .route("/auth/me", axum::routing::get(handlers::auth_handler::get_current_user))
+
         .merge(SwaggerUi::new("/swagger").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .with_state(app_state);
 
