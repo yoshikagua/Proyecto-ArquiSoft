@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Json},
+    extract::{State, Json,Path,},
     response::IntoResponse,
     http::StatusCode,
 };
@@ -10,6 +10,7 @@ use crate::dto::register_request::RegisterRequest;
 use crate::dto::recovery_request::RecoveryRequest;
 use crate::dto::verify_recovery_code_request::VerifyRecoveryCodeRequest;
 use crate::dto::login_request::LoginRequest;
+use crate::dto::update_user_request::{UpdateUserRequest, ResetPasswordRequest};
 use crate::errors::app_error::AppError;
 use crate::services::auth_service::Claims;
 use sqlx::Row;
@@ -104,7 +105,7 @@ pub async fn verify_recovery_code(
         return Err(AppError::BadRequest);
     }
     if let Err(e) = state.recovery_service
-        .verify_code(payload.email.as_str(), payload.code.as_str())
+        .verify_code_only(payload.email.as_str(), payload.code.as_str()) // <--- Usar _only
         .await {
         error!("/auth/verify-recovery-code - error: {:?}", e);
         return Err(e);
@@ -220,4 +221,87 @@ pub async fn get_current_user(
         Ok(None) => AppError::Unauthorized.into_response(),
         Err(_) => AppError::DatabaseError.into_response(),
     }
+}
+
+#[utoipa::path(
+    put,
+    path = "/auth/users/{id}",
+    request_body = UpdateUserRequest,
+    responses((status = 200, description = "Usuario actualizado")),
+    security(("bearer_auth" = [])),
+    tag = "auth"
+)]
+pub async fn update_user(
+    State(state): State<AppState>,
+    Path(target_id): Path<i32>,
+    claims: Claims,
+    Json(payload): Json<UpdateUserRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    if payload.role_id.is_some() && claims.role != 3 {
+        return Err(AppError::Unauthorized);
+    }
+
+    // Usamos query normal para evitar el error de conexión en Docker
+    sqlx::query(
+        r#"
+        UPDATE users 
+        SET first_name = COALESCE($1, first_name),
+            last_name = COALESCE($2, last_name),
+            profile_info = COALESCE($3, profile_info),
+            email = COALESCE($4, email),
+            role_id = CASE WHEN $5 = 3 THEN COALESCE($6, role_id) ELSE role_id END
+        WHERE user_id = $7
+        "#
+    )
+    .bind(payload.first_name)
+    .bind(payload.last_name)
+    .bind(payload.profile_info)
+    .bind(payload.email)
+    .bind(claims.role)
+    .bind(payload.role_id)
+    .bind(target_id)
+    .execute(&*state.auth_service.pool)
+    .await
+    .map_err(|_| AppError::DatabaseError)?;
+
+    Ok(StatusCode::OK)
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/reset-password",
+    request_body = ResetPasswordRequest,
+    responses((status = 200, description = "Password reset exitoso")),
+    tag = "auth"
+)]
+pub async fn reset_password(
+    State(state): State<AppState>,
+    Json(payload): Json<ResetPasswordRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    state.recovery_service.consume_code(&payload.email, &payload.code).await?;
+
+    use argon2::{password_hash::{PasswordHasher, SaltString}, Argon2};
+    // CORRECCIÓN DEL IMPORT DE OsRng
+    use argon2::password_hash::rand_core::OsRng; 
+
+    let salt = SaltString::generate(&mut OsRng);
+    let hashed_password = Argon2::default()
+        .hash_password(payload.new_password.as_bytes(), &salt)
+        .map_err(|_| AppError::DatabaseError)?
+        .to_string();
+
+    let mut tx = state.auth_service.pool.begin().await.map_err(|_| AppError::DatabaseError)?;
+
+    sqlx::query("UPDATE users SET password = $1 WHERE email = $2")
+        .bind(hashed_password)
+        .bind(&payload.email)
+        .execute(&mut *tx).await.map_err(|_| AppError::DatabaseError)?;
+
+    sqlx::query("DELETE FROM sessions WHERE user_id = (SELECT user_id FROM users WHERE email = $1)")
+        .bind(&payload.email)
+        .execute(&mut *tx).await.map_err(|_| AppError::DatabaseError)?;
+
+    tx.commit().await.map_err(|_| AppError::DatabaseError)?;
+
+    Ok((StatusCode::OK, Json(json!({"message": "Password actualizada"}))))
 }

@@ -76,63 +76,65 @@ impl RecoveryService {
             Ok(false)
         }
     }
-}
-
-impl RecoveryService {
-
-    pub async fn verify_code(
+    
+    pub async fn verify_code_only(
         &self,
         email: &str,
         code: &str,
     ) -> Result<(), AppError> {
-        // Buscar usuario
-        let user = sqlx::query("SELECT user_id FROM users WHERE email = $1")
-            .bind(email)
-            .fetch_optional(&*self.pool)
-            .await
-            .map_err(|_| AppError::DatabaseError)?;
-
-        let user = match user {
-            Some(u) => u,
-            None => return Err(AppError::InvalidCredentials),
-        };
-        let user_id: i32 = user.get("user_id");
-
-        // Eliminar códigos expirados
-        sqlx::query("DELETE FROM recovery_codes WHERE user_id = $1 AND expires_at <= NOW()")
-            .bind(user_id)
-            .execute(&*self.pool)
-            .await
-            .map_err(|_| AppError::DatabaseError)?;
+        let user_id = self.get_user_id_by_email(email).await?;
 
         // Buscar el código más reciente y no expirado
-        let rec = sqlx::query("SELECT id, code_hash, expires_at FROM recovery_codes WHERE user_id = $1 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1")
+        let rec = sqlx::query("SELECT code_hash FROM recovery_codes WHERE user_id = $1 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1")
             .bind(user_id)
             .fetch_optional(&*self.pool)
             .await
             .map_err(|_| AppError::DatabaseError)?;
 
-        let rec = match rec {
-            Some(r) => r,
-            None => return Err(AppError::InvalidCredentials),
-        };
+        let row = rec.ok_or(AppError::InvalidCredentials)?;
+        let code_hash: String = row.get("code_hash");
 
-        let code_hash: String = rec.get("code_hash");
-        let code_id: i32 = rec.get("id");
-
-        // Verificar el código
+        // Verificar el hash
         let parsed_hash = PasswordHash::new(&code_hash).map_err(|_| AppError::InvalidCredentials)?;
-        let argon2 = Argon2::default();
-        argon2.verify_password(code.as_bytes(), &parsed_hash)
+        Argon2::default()
+            .verify_password(code.as_bytes(), &parsed_hash)
             .map_err(|_| AppError::InvalidCredentials)?;
 
-        // Eliminar el código usado
-        sqlx::query("DELETE FROM recovery_codes WHERE id = $1")
-            .bind(code_id)
+        Ok(())
+    }
+
+    /// PASO 2: Verifica y ELIMINA el código
+    /// Se usa en el endpoint /auth/reset-password
+    pub async fn consume_code(
+        &self,
+        email: &str,
+        code: &str,
+    ) -> Result<(), AppError> {
+        // Primero validamos que sea correcto
+        self.verify_code_only(email, code).await?;
+
+        let user_id = self.get_user_id_by_email(email).await?;
+
+        // Si es correcto, eliminamos todos los códigos de este usuario para que no se reusen
+        sqlx::query("DELETE FROM recovery_codes WHERE user_id = $1")
+            .bind(user_id)
             .execute(&*self.pool)
             .await
             .map_err(|_| AppError::DatabaseError)?;
 
         Ok(())
     }
+
+    // Función auxiliar para no repetir código
+    async fn get_user_id_by_email(&self, email: &str) -> Result<i32, AppError> {
+        let user = sqlx::query("SELECT user_id FROM users WHERE email = $1")
+            .bind(email)
+            .fetch_optional(&*self.pool)
+            .await
+            .map_err(|_| AppError::DatabaseError)?;
+
+        user.map(|u| u.get("user_id")).ok_or(AppError::InvalidCredentials)
+    }
+
 }
+
