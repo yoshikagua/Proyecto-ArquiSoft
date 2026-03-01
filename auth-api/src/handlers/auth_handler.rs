@@ -198,10 +198,16 @@ pub async fn get_current_user(
     State(state): State<AppState>,
     claims: Claims,
 ) -> impl IntoResponse {
-    // Usamos query_as! solo si tenemos el entorno listo, 
-    // pero para evitar errores de conexión en el build, usamos query:
+    // 1. Realizamos un INNER JOIN para obtener el nombre del rol
     let user = sqlx::query(
-        "SELECT user_id, email, first_name, last_name, role_id FROM users WHERE user_id = $1"
+        r#"
+        SELECT 
+            u.user_id, u.email, u.first_name, u.last_name, u.role_id, u.profile_info,
+            r.name as role_name
+        FROM users u
+        INNER JOIN roles r ON u.role_id = r.id
+        WHERE u.user_id = $1
+        "#
     )
     .bind(claims.sub)
     .fetch_optional(&*state.auth_service.pool)
@@ -209,17 +215,22 @@ pub async fn get_current_user(
 
     match user {
         Ok(Some(row)) => {
-            use sqlx::Row; // Importante para usar .get()
+            use sqlx::Row;
             (StatusCode::OK, Json(json!({
                 "id": row.get::<i32, _>("user_id"),
                 "email": row.get::<String, _>("email"),
                 "first_name": row.get::<String, _>("first_name"),
                 "last_name": row.get::<String, _>("last_name"),
-                "role_id": row.get::<i32, _>("role_id")
+                "role_id": row.get::<i32, _>("role_id"),
+                "role_name": row.get::<String, _>("role_name"), // <-- Nuevo campo
+                "profile_info": row.get::<Option<String>, _>("profile_info")
             }))).into_response()
         },
         Ok(None) => AppError::Unauthorized.into_response(),
-        Err(_) => AppError::DatabaseError.into_response(),
+        Err(e) => {
+            error!("Error en get_current_user: {:?}", e);
+            AppError::DatabaseError.into_response()
+        },
     }
 }
 
