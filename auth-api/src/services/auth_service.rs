@@ -126,28 +126,60 @@ pub async fn login(&self, payload: LoginRequest) -> Result<(User, String), AppEr
             .verify_password(payload.password.as_bytes(), &hash)
             .map_err(|_| AppError::InvalidCredentials)?;
 
-        // 3. Generar JWT
-        let secret = env::var("JWT_SECRET").map_err(|_| {
-            tracing::error!("JWT_SECRET no configurada en .env");
-            AppError::DatabaseError
-        })?;
+
+    // 3.AQUÍ MANEJAMOS LA SESIÓN ÚNICA
+    
+    let mut tx = self.pool.begin().await.map_err(|_| AppError::DatabaseError)?;
+
+    // A. Borrar sesiones anteriores del mismo usuario (Garantiza sesión única)
+    sqlx::query("DELETE FROM sessions WHERE user_id = $1")
+        .bind(user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AppError::DatabaseError)?;
+
+    // B. Generar datos del JWT
+    let secret = env::var("JWT_SECRET").map_err(|_| AppError::DatabaseError)?;
+    let now = Utc::now().timestamp();
+    let expiration = now + (24 * 3600); 
+
+    let claims = Claims {
+        sub: user.user_id,
+        exp: expiration,
+        iat: now,
+        role: user.role_id,
+    };
+
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    ).map_err(|_| AppError::DatabaseError)?;
+
+    // C. Guardar la nueva sesión en la DB
+    // Nota: Guardamos el hash del token o el token mismo según tu modelo
+    sqlx::query(
+        "INSERT INTO sessions (user_id, refresh_token_hash, expires_at, created_at) 
+         VALUES ($1, $2, $3, NOW())"
+    )
+    .bind(user.user_id)
+    .bind(&token) // O un hash de este si prefieres
+    .bind(Utc::now() + chrono::Duration::hours(24))
+    .execute(&mut *tx)
+    .await
+    .map_err(|_| AppError::DatabaseError)?;
+
+    tx.commit().await.map_err(|_| AppError::DatabaseError)?;
+
+    Ok((user, token))    }
+    
+    pub async fn logout(&self, user_id: i32) -> Result<(), AppError> {
+        sqlx::query("DELETE FROM sessions WHERE user_id = $1")
+            .bind(user_id)
+            .execute(&*self.pool)
+            .await
+            .map_err(|_| AppError::DatabaseError)?;
         
-        let now = Utc::now().timestamp();
-        let expiration = now + (24 * 3600); // 24 horas
-
-        let claims = Claims {
-            sub: user.user_id,
-            exp: expiration,
-            iat: now,
-            role: user.role_id,
-        };
-
-        let token = encode(
-            &Header::default(),
-            &claims,
-            &EncodingKey::from_secret(secret.as_bytes()),
-        ).map_err(|_| AppError::DatabaseError)?;
-
-        Ok((user, token))
+        Ok(())
     }
 }

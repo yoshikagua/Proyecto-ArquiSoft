@@ -12,19 +12,20 @@ pub enum AppError {
 	EmailError,
 	#[error("Invalid credentials")] 
 	InvalidCredentials,
+  #[error("No autorizado")] 
+  Unauthorized,
 }
 
 use axum::{response::{IntoResponse, Response}, http::StatusCode};
 
 impl IntoResponse for AppError {
-	fn into_response(self) -> Response {
-		   let status = match self {
-			   AppError::BadRequest => StatusCode::BAD_REQUEST,
-			   AppError::AlreadyExists => StatusCode::CONFLICT,
-			   AppError::DatabaseError => StatusCode::INTERNAL_SERVER_ERROR,
-			   AppError::EmailError => StatusCode::INTERNAL_SERVER_ERROR,
-			   AppError::InvalidCredentials => StatusCode::UNAUTHORIZED,
-		   };
-		   (status, self.to_string()).into_response()
-	}
+    fn into_response(self) -> Response {
+        let status = match self {
+            AppError::BadRequest => StatusCode::BAD_REQUEST,
+            AppError::AlreadyExists => StatusCode::CONFLICT,
+            AppError::InvalidCredentials | AppError::Unauthorized => StatusCode::UNAUTHORIZED,
+            AppError::DatabaseError | AppError::EmailError => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        (status, self.to_string()).into_response()
+    }
 }

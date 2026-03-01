@@ -11,6 +11,8 @@ use crate::dto::recovery_request::RecoveryRequest;
 use crate::dto::verify_recovery_code_request::VerifyRecoveryCodeRequest;
 use crate::dto::login_request::LoginRequest;
 use crate::errors::app_error::AppError;
+use crate::services::auth_service::Claims;
+
 #[utoipa::path(
     post,
     path = "/auth/recover",
@@ -152,5 +154,30 @@ pub async fn login(
             error!("Error en login: {:?}", e);
             e.into_response()
         }
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    responses(
+        (status = 200, description = "Sesión cerrada correctamente"),
+        (status = 401, description = "No autorizado"),
+    ),
+    security(
+        ("bearer_auth" = [])
+    ),
+    tag = "auth"
+)]
+pub async fn logout(
+    State(state): State<AppState>,
+    claims: Claims, // El extractor ahora funciona correctamente
+) -> impl IntoResponse {
+    match state.auth_service.logout(claims.sub).await {
+        Ok(_) => (
+            StatusCode::OK, 
+            Json(serde_json::json!({ "message": "Sesión cerrada correctamente" }))
+        ).into_response(),
+        Err(e) => e.into_response(),
     }
 }

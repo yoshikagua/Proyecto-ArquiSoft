@@ -15,7 +15,7 @@ use crate::dto::{
     register_request::RegisterRequest, 
     recovery_request::RecoveryRequest, 
     verify_recovery_code_request::VerifyRecoveryCodeRequest,
-    login_request::LoginRequest // <-- Agrega esto
+    login_request::LoginRequest 
 };
 #[derive(OpenApi)]
 #[openapi(
@@ -24,6 +24,7 @@ use crate::dto::{
         handlers::auth_handler::recover_password,
         handlers::auth_handler::verify_recovery_code,
         handlers::auth_handler::login,
+        handlers::auth_handler::logout,
     ),
     components(schemas(
         RegisterRequest, 
@@ -104,7 +105,9 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/auth/register", post(handlers::auth_handler::register))
         .route("/auth/login", post(handlers::auth_handler::login))
+        .route("/auth/logout", post(handlers::auth_handler::logout))
         .route("/auth/recover", post(handlers::auth_handler::recover_password))
+
         .route("/auth/verify-recovery-code", post(handlers::auth_handler::verify_recovery_code))
         .merge(SwaggerUi::new("/swagger").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .with_state(app_state);
