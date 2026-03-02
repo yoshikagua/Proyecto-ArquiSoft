@@ -66,9 +66,12 @@ pub async fn recover_password(
 )]
 pub async fn register(
     State(state): State<AppState>,
-    Json(payload): Json<RegisterRequest>,
+    Json(mut payload): Json<RegisterRequest>,
 ) -> Result<impl axum::response::IntoResponse, AppError> {
     info!("POST /auth/register - email: {}", payload.email);
+
+    payload.role_id = Some(1);
+
     if payload.email.trim().is_empty() || payload.password.len() < 6 {
         error!("/auth/register - email vacío o password muy corto");
         return Err(AppError::BadRequest);
@@ -248,11 +251,37 @@ pub async fn update_user(
     claims: Claims,
     Json(payload): Json<UpdateUserRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    if payload.role_id.is_some() && claims.role != 3 {
-        return Err(AppError::Unauthorized);
+    
+    // 1. Obtener el rol actual del usuario que queremos editar (el destino)
+    let target_user_role: i32 = sqlx::query_scalar("SELECT role_id FROM users WHERE user_id = $1")
+        .bind(target_id)
+        .fetch_optional(&*state.auth_service.pool)
+        .await
+        .map_err(|_| AppError::DatabaseError)?
+        .ok_or(AppError::BadRequest)?;
+
+    // 2. APLICAR JERARQUÍA DE SEGURIDAD
+    if claims.role == 2 {
+        // El ADMIN (2) solo puede editar a USERS (1)
+        if target_user_role != 1 {
+            error!("Admin {} intentó editar a un no-usuario (Rol {})", claims.sub, target_user_role);
+            return Err(AppError::Unauthorized);
+        }
+        // El ADMIN no puede ascender a nadie a Admin o SuperAdmin
+        if let Some(new_role) = payload.role_id {
+            if new_role != 1 { return Err(AppError::Unauthorized); }
+        }
+    } else if claims.role == 3 {
+        // El SUPER_ADMIN (3) puede editar a cualquiera (1 o 2)
+        // (Opcional: evitar que un SuperAdmin se degrade a sí mismo si es el único)
+    } else {
+        // Si es ROL 1 (user), solo puede editarse a sí mismo y NO su rol
+        if target_id != claims.sub || payload.role_id.is_some() {
+            return Err(AppError::Unauthorized);
+        }
     }
 
-    // Usamos query normal para evitar el error de conexión en Docker
+    // 3. Ejecutar el UPDATE (tu query actual está bien, pero ahora está protegida)
     sqlx::query(
         r#"
         UPDATE users 
@@ -264,13 +293,9 @@ pub async fn update_user(
         WHERE user_id = $7
         "#
     )
-    .bind(payload.first_name)
-    .bind(payload.last_name)
-    .bind(payload.profile_info)
-    .bind(payload.email)
-    .bind(claims.role)
-    .bind(payload.role_id)
-    .bind(target_id)
+    .bind(payload.first_name).bind(payload.last_name)
+    .bind(payload.profile_info).bind(payload.email)
+    .bind(claims.role).bind(payload.role_id).bind(target_id)
     .execute(&*state.auth_service.pool)
     .await
     .map_err(|_| AppError::DatabaseError)?;
