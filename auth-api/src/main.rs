@@ -29,6 +29,7 @@ use crate::dto::{
         handlers::auth_handler::update_user,
         handlers::auth_handler::reset_password,
         handlers::auth_handler::get_all_users,
+        handlers::auth_handler::change_password
     ),
     components(schemas(
         RegisterRequest, 
@@ -37,7 +38,8 @@ use crate::dto::{
         LoginRequest,
         crate::dto::update_user_request::UpdateUserRequest,
         crate::dto::update_user_request::ResetPasswordRequest,
-        crate::handlers::auth_handler::UserListResponse
+        crate::handlers::auth_handler::UserListResponse,
+        crate::dto::change_password_request::ChangePasswordRequest
     )),
     tags(
         (name = "auth", description = "Authentication endpoints")
@@ -119,6 +121,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/auth/users/:id", put(handlers::auth_handler::update_user))
         .route("/auth/reset-password", post(handlers::auth_handler::reset_password))
         .route("/auth/users", get(handlers::auth_handler::get_all_users))
+        .route("/auth/change-password", post(handlers::auth_handler::change_password))
 
         .merge(SwaggerUi::new("/swagger").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .with_state(app_state);

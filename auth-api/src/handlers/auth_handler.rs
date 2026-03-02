@@ -11,6 +11,7 @@ use crate::dto::recovery_request::RecoveryRequest;
 use crate::dto::verify_recovery_code_request::VerifyRecoveryCodeRequest;
 use crate::dto::login_request::LoginRequest;
 use crate::dto::update_user_request::{UpdateUserRequest, ResetPasswordRequest};
+use crate::dto::change_password_request::ChangePasswordRequest;
 use crate::errors::app_error::AppError;
 use crate::services::auth_service::Claims;
 use sqlx::Row;
@@ -400,4 +401,75 @@ pub async fn get_all_users(
     }).collect();
 
     Ok(Json(response))
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/change-password",
+    request_body = ChangePasswordRequest,
+    responses(
+        (status = 200, description = "Contraseña cambiada con éxito"),
+        (status = 401, description = "Contraseña actual incorrecta"),
+    ),
+    security(("bearer_auth" = [])),
+    tag = "auth"
+)]
+
+pub async fn change_password(
+    State(state): State<AppState>,
+    claims: Claims,
+    Json(payload): Json<ChangePasswordRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    
+    // 1. Obtener hash y email
+    let row = sqlx::query("SELECT password, email FROM users WHERE user_id = $1")
+        .bind(claims.sub)
+        .fetch_one(&*state.auth_service.pool)
+        .await
+        .map_err(|_| AppError::DatabaseError)?;
+
+    let current_hash: String = row.get("password");
+    let user_email: String = row.get("email");
+
+    // 2. Verificar password anterior con Argon2
+    use argon2::{PasswordHash, PasswordVerifier, Argon2};
+    let parsed_hash = PasswordHash::new(&current_hash).map_err(|_| AppError::DatabaseError)?;
+
+    if Argon2::default()
+        .verify_password(payload.old_password.as_bytes(), &parsed_hash)
+        .is_err() 
+    {
+        return Err(AppError::Unauthorized);
+    }
+
+    // 3. Hashear nueva password
+    use argon2::password_hash::{PasswordHasher, SaltString};
+    use argon2::password_hash::rand_core::OsRng;
+    let salt = SaltString::generate(&mut OsRng);
+    let new_hashed_password = Argon2::default()
+        .hash_password(payload.new_password.as_bytes(), &salt)
+        .map_err(|_| AppError::DatabaseError)?
+        .to_string();
+
+    // 4. Update en DB
+    sqlx::query("UPDATE users SET password = $1 WHERE user_id = $2")
+        .bind(new_hashed_password)
+        .bind(claims.sub)
+        .execute(&*state.auth_service.pool)
+        .await
+        .map_err(|_| AppError::DatabaseError)?;
+
+    // 5. ENVIAR CORREO usando tu EmailService
+    // IMPORTANTE: Asegúrate de que EmailRequest esté importado o usa la ruta completa
+    let email_req = crate::dto::email_request::EmailRequest {
+        to: user_email,
+        subject: "Seguridad: Tu contraseña ha cambiado".to_string(),
+        body: "Hola, te informamos que tu contraseña ha sido actualizada. Si no fuiste tú, contacta a soporte.".to_string(),
+    };
+
+    // Usamos el email_service que tienes en el AppState
+    if let Err(e) = state.recovery_service.email_service.send_email(email_req).await {        error!("Error enviando correo de seguridad: {:?}", e);
+    }
+
+    Ok((StatusCode::OK, Json(serde_json::json!({ "message": "Contraseña actualizada" }))))
 }
