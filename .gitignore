@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -22,16 +23,17 @@ wheels/
 .installed.cfg
 *.egg
 
-# IDE
-.vscode/
+# Environment files
+.env
+.env.local
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
 *~
-
-# Environment
-.env
-.env.local
 
 # OS
 .DS_Store
