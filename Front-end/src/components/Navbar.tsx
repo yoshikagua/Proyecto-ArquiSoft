@@ -1,0 +1,198 @@
+/**
+ * Navbar.tsx
+ * Barra de navegación superior fija de la aplicación.
+ *
+ * Características:
+ * - Logo con enlace a /partituras
+ * - Enlaces de navegación activos (resaltados según la ruta actual)
+ * - Menú hamburguesa para pantallas pequeñas
+ * - Avatar del usuario autenticado con menú desplegable (cerrar sesión)
+ * - Redirige a /login si el usuario no está autenticado al hacer clic en logout
+ */
+
+import { useState, useRef, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Music, Upload, BookOpen, Menu, X, LogOut, ChevronDown } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+
+/** Definición de cada enlace de navegación */
+interface NavItem {
+    label: string;
+    path: string;
+    icon: React.ReactNode;
+}
+
+const Navbar = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { user, logout } = useAuth();
+
+    // ── Estado de UI ──
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+    // Ref para cerrar el menú de usuario al hacer clic fuera
+    const userMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+                setUserMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    /** Rutas principales de la aplicación protegida */
+    const navItems: NavItem[] = [
+        { label: "Partituras", path: "/partituras", icon: <BookOpen className="h-4 w-4" /> },
+        { label: "Instrumentos", path: "/instrumentos", icon: <Music className="h-4 w-4" /> },
+        { label: "Subir Partitura", path: "/subir-partitura", icon: <Upload className="h-4 w-4" /> },
+    ];
+
+    /** Determina si un enlace está activo comparando con la ruta actual */
+    const isActive = (path: string) => location.pathname === path;
+
+    /** Cierra la sesión, limpia el estado y navega al login */
+    const handleLogout = () => {
+        logout();
+        navigate("/login", { replace: true });
+    };
+
+    return (
+        <nav className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-secondary/20 bg-card/80 backdrop-blur-md shadow-sm">
+            <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+
+                {/* ── Logo ── */}
+                <button
+                    onClick={() => navigate("/partituras")}
+                    className="flex items-center gap-2 transition-opacity hover:opacity-80"
+                >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full">
+                        <img src="/logo.png" alt="KuisiScore Logo" className="h-full w-full object-contain" />
+                    </div>
+                    <span className="hidden font-serif text-lg font-semibold text-foreground sm:block">
+                        KuisiScore
+                    </span>
+                </button>
+
+                {/* ── Navegación desktop ── */}
+                <div className="hidden items-center gap-1 md:flex">
+                    {navItems.map((item) => (
+                        <button
+                            key={item.path}
+                            onClick={() => navigate(item.path)}
+                            className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all ${isActive(item.path)
+                                ? "bg-primary text-primary-foreground shadow-sm"
+                                : "text-foreground hover:bg-secondary/15 hover:text-primary"
+                                }`}
+                        >
+                            {item.icon}
+                            {item.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* ── Avatar + menú de usuario (desktop) ── */}
+                <div className="hidden items-center gap-3 md:flex">
+                    <div className="h-5 w-px bg-secondary/30" />
+
+                    {/* Menú desplegable del usuario */}
+                    <div ref={userMenuRef} className="relative">
+                        <button
+                            onClick={() => setUserMenuOpen(!userMenuOpen)}
+                            className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-secondary/15"
+                        >
+                            {/* Avatar circular con la inicial del usuario */}
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 font-serif text-sm font-bold text-primary">
+                                {user?.avatar ?? "?"}
+                            </div>
+                            <span className="max-w-[120px] truncate text-sm font-medium text-foreground">
+                                {user?.nombre ?? "Usuario"}
+                            </span>
+                            <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {/* Dropdown */}
+                        {userMenuOpen && (
+                            <div className="absolute right-0 top-full mt-1 w-52 rounded-xl border border-secondary/20 bg-card shadow-lg py-1 animate-fade-in">
+                                {/* Info del usuario */}
+                                <div className="border-b border-secondary/10 px-4 py-3">
+                                    <p className="text-sm font-semibold text-foreground">{user?.nombre}</p>
+                                    <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                                </div>
+                                {/* Cerrar sesión */}
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                >
+                                    <LogOut className="h-4 w-4" />
+                                    Cerrar sesión
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Botón menú móvil ── */}
+                <button
+                    onClick={() => setMobileOpen(!mobileOpen)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-secondary/20 md:hidden"
+                    aria-label="Abrir menú"
+                >
+                    {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </button>
+            </div>
+
+            {/* ── Menú móvil desplegable ── */}
+            {mobileOpen && (
+                <div className="border-t border-secondary/20 bg-card px-4 pb-4 shadow-md md:hidden">
+                    {/* Info del usuario */}
+                    {user && (
+                        <div className="flex items-center gap-3 border-b border-secondary/10 py-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 font-serif text-sm font-bold text-primary">
+                                {user.avatar}
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">{user.nombre}</p>
+                                <p className="text-xs text-muted-foreground">{user.email}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Navegación */}
+                    <div className="mt-2 flex flex-col gap-1">
+                        {navItems.map((item) => (
+                            <button
+                                key={item.path}
+                                onClick={() => {
+                                    navigate(item.path);
+                                    setMobileOpen(false);
+                                }}
+                                className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all ${isActive(item.path)
+                                    ? "bg-primary text-primary-foreground"
+                                    : "text-foreground hover:bg-secondary/15"
+                                    }`}
+                            >
+                                {item.icon}
+                                {item.label}
+                            </button>
+                        ))}
+
+                        {/* Cerrar sesión móvil */}
+                        <button
+                            onClick={handleLogout}
+                            className="mt-1 flex items-center gap-2 rounded-lg border border-destructive/20 px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                            <LogOut className="h-4 w-4" />
+                            Cerrar sesión
+                        </button>
+                    </div>
+                </div>
+            )}
+        </nav>
+    );
+};
+
+export default Navbar;
