@@ -110,6 +110,8 @@
           <a href="${score.fileUrl}" target="_blank">Abrir</a>
           |
           <a href="${score.fileUrl}" download>Descargar</a>
+          |
+          <button onclick="editScore('${score.id}', '${score.title}', '${score.composer}')">Editar</button>
         `;
 
         list.appendChild(li);
@@ -117,6 +119,39 @@
     }
 
     loadScores();
+
+    async function editScore(id, currentTitle, currentComposer) {
+      const newTitle = prompt("Nuevo título:", currentTitle);
+      const newComposer = prompt("Nuevo compositor:", currentComposer);
+
+      if (newTitle && newComposer) {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${AUTH_TOKEN}`
+          },
+          body: JSON.stringify({
+            query: `
+              mutation {
+                updateScore(id: "${id}", title: "${newTitle}", composer: "${newComposer}") {
+                  id
+                  title
+                  composer
+                  fileUrl
+                }
+              }
+            `
+          })
+        });
+
+        const result = await response.json();
+        document.getElementById("response").textContent =
+          JSON.stringify(result, null, 2);
+
+        loadScores();
+      }
+    }
   </script>
 
 </body>

@@ -11,6 +11,7 @@ from app.core.storage import minio_client
 from app.core.config import settings
 from io import BytesIO
 from datetime import timedelta
+from bson import ObjectId
 
 @strawberry.type
 class Query:
@@ -104,4 +105,62 @@ class Mutation:
             title=title,
             composer=composer,
             file_url=f"http://localhost:9000/{settings.BUCKET_NAME}/{object_key}",
+        )
+
+    @strawberry.mutation
+    async def update_score(
+        self,
+        info: Info,
+        id: str,
+        title: str,
+        composer: str
+    ) -> ScoreType:
+
+        # 🔐 Leer header Authorization
+        request = info.context["request"]
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            raise HTTPException(status_code=401, detail="Authorization header missing")
+
+        try:
+            scheme, token = auth_header.split()
+
+            if scheme.lower() != "bearer":
+                raise HTTPException(status_code=401, detail="Invalid auth scheme")
+
+            # 🔐 Validar JWT
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET,
+                algorithms=[settings.JWT_ALGORITHM]
+            )
+
+            user_id = payload.get("sub")
+
+            if not user_id:
+                raise HTTPException(status_code=401, detail="Invalid token payload")
+
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        collection = get_scores_collection()
+
+        # Verificar que el score existe y pertenece al usuario
+        doc = await collection.find_one({"_id": ObjectId(id), "user_id": user_id})
+        if not doc:
+            raise HTTPException(status_code=404, detail="Score not found or not owned by user")
+
+        # Actualizar
+        update_data = {"title": title, "composer": composer}
+        await collection.update_one({"_id": ObjectId(id)}, {"$set": update_data})
+
+        # Obtener el documento actualizado
+        updated_doc = await collection.find_one({"_id": ObjectId(id)})
+
+        return ScoreType(
+            id=str(updated_doc["_id"]),
+            title=updated_doc["title"],
+            composer=updated_doc["composer"],
+            file_url=f"http://localhost:9000/{settings.BUCKET_NAME}/{updated_doc['object_key']}",
         )
