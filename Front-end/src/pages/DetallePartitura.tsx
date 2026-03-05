@@ -29,6 +29,16 @@ import MainLayout from "@/layouts/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { PARTITURAS_MOCK } from "@/mockData";
 import { Comentario } from "@/types";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const DetallePartitura = () => {
     const { id } = useParams<{ id: string }>();
@@ -51,6 +61,7 @@ const DetallePartitura = () => {
 
     // ── Datos de usuario autenticado ──
     const { user } = useAuth();
+    const [showLoginAlert, setShowLoginAlert] = useState(false);
 
     const nombreFormateado = (() => {
         if (!user || (!user.nombre && !user.email)) return "Usuario Anónimo";
@@ -92,6 +103,10 @@ const DetallePartitura = () => {
 
     /** Alterna el like del usuario en esta partitura */
     const handleLike = () => {
+        if (!user) {
+            setShowLoginAlert(true);
+            return;
+        }
         if (liked) {
             setLikes((prev) => prev - 1);
             setLiked(false);
@@ -99,6 +114,14 @@ const DetallePartitura = () => {
             setLikes((prev) => prev + 1);
             setLiked(true);
         }
+    };
+
+    const handleFavorito = () => {
+        if (!user) {
+            setShowLoginAlert(true);
+            return;
+        }
+        setFavorito(!favorito);
     };
 
     /** Simula la descarga del archivo PDF de la partitura */
@@ -232,7 +255,7 @@ const DetallePartitura = () => {
 
                         {/* Botón favorito */}
                         <button
-                            onClick={() => setFavorito(!favorito)}
+                            onClick={handleFavorito}
                             className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all ${favorito
                                 ? "border-secondary bg-secondary/15 text-secondary"
                                 : "border-secondary/30 bg-background text-foreground hover:border-secondary hover:text-secondary"
@@ -273,47 +296,62 @@ const DetallePartitura = () => {
                         <h3 className="mb-4 text-sm font-semibold text-foreground">
                             Deja tu comentario
                         </h3>
-                        <div className="space-y-3">
-                            <p className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                                <User className="h-4 w-4" />
-                                Comentando como <span className="font-semibold text-foreground">{nombreFormateado}</span>
-                            </p>
-                            {/* Texto del comentario */}
-                            <textarea
-                                value={nuevoComentario}
-                                onChange={(e) => setNuevoComentario(e.target.value)}
-                                placeholder="Escribe tu opinión, sugerencias o experiencia con esta partitura…"
-                                rows={3}
-                                className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none transition-colors"
-                            />
-                            {/* Botón enviar */}
-                            <div className="flex justify-end">
+                        {user ? (
+                            <div className="space-y-3">
+                                <p className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                                    <User className="h-4 w-4" />
+                                    Comentando como <span className="font-semibold text-foreground">{nombreFormateado}</span>
+                                </p>
+                                {/* Texto del comentario */}
+                                <textarea
+                                    value={nuevoComentario}
+                                    onChange={(e) => setNuevoComentario(e.target.value)}
+                                    placeholder="Escribe tu opinión, sugerencias o experiencia con esta partitura…"
+                                    rows={3}
+                                    className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none transition-colors"
+                                />
+                                {/* Botón enviar */}
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={handleEnviarComentario}
+                                        disabled={!nuevoComentario.trim() || enviandoComentario}
+                                        className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {enviandoComentario ? (
+                                            <>
+                                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                                    <circle
+                                                        className="opacity-25"
+                                                        cx="12" cy="12" r="10"
+                                                        stroke="currentColor" strokeWidth="4"
+                                                    />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                                </svg>
+                                                Enviando…
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send className="h-4 w-4" />
+                                                Publicar comentario
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-6 text-center">
+                                <User className="h-10 w-10 text-secondary/30 mb-3" />
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    Inicia sesión para poder compartir tu opinión sobre esta partitura.
+                                </p>
                                 <button
-                                    onClick={handleEnviarComentario}
-                                    disabled={!nuevoComentario.trim() || enviandoComentario}
-                                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={() => navigate("/login")}
+                                    className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
                                 >
-                                    {enviandoComentario ? (
-                                        <>
-                                            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                                                <circle
-                                                    className="opacity-25"
-                                                    cx="12" cy="12" r="10"
-                                                    stroke="currentColor" strokeWidth="4"
-                                                />
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                                            </svg>
-                                            Enviando…
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send className="h-4 w-4" />
-                                            Publicar comentario
-                                        </>
-                                    )}
+                                    Iniciar sesión
                                 </button>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* ── Lista de comentarios ── */}
@@ -334,6 +372,24 @@ const DetallePartitura = () => {
                     )}
                 </div>
             </div>
+
+            {/* Modal para login en acciones protegidas */}
+            <AlertDialog open={showLoginAlert} onOpenChange={setShowLoginAlert}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Inicia sesión</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Para realizar esta acción necesitas acceder a tu cuenta. Inicia sesión o regístrate para interactuar con esta partitura.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => navigate("/login")}>
+                            Ir al Login
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </MainLayout>
     );
 };

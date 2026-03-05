@@ -38,10 +38,10 @@ Front-end/
 │   │   ├── RecoverPassword.tsx # Recuperar contraseña
 │   │   ├── VerifyCode.tsx      # Verificación de código OTP
 │   │   ├── ResetPassword.tsx   # Restablecer contraseña
-│   │   ├── Partituras.tsx      # 🔒 Lista de partituras (búsqueda + filtros)
-│   │   ├── DetallePartitura.tsx# 🔒 Detalle, descarga, likes, comentarios
-│   │   ├── Instrumentos.tsx    # 🔒 Lista de instrumentos (búsqueda + filtros)
-│   │   └── SubirPartitura.tsx  # 🔒 Formulario para subir partituras
+│   │   ├── Partituras.tsx      # � Lista de partituras (Pública, guest-friendly)
+│   │   ├── DetallePartitura.tsx# � Detalle partitura (Lectura pública, acciones protegidas)
+│   │   ├── Instrumentos.tsx    # � Lista de instrumentos (Pública)
+│   │   └── SubirPartitura.tsx  # 🔒 Formulario para subir partituras (Protegido)
 │   ├── mockData.ts        # Datos de ejemplo (reemplazar con llamadas API)
 │   ├── types.ts           # Interfaces TypeScript globales
 │   └── App.tsx            # Definición de rutas + AuthProvider
@@ -49,7 +49,8 @@ Front-end/
 └── index.html
 ```
 
-> 🔒 = Ruta protegida. Requiere sesión activa; redirige a `/login` si no autenticado.
+> 🔒 = **Ruta protegida**. Requiere sesión activa; redirige a `/login` si no autenticado.
+> 🟢 = **Ruta pública**. Accesible como invitado, pero requiere login para interactuar (likes, favoritos, comentarios).
 
 ---
 
@@ -87,7 +88,7 @@ npm install
 npm run dev
 ```
 
-La aplicación quedará disponible en `http://localhost:5173`.
+La aplicación quedará disponible en `http://localhost:xxxx`.
 
 ### Otros comandos útiles
 
@@ -110,9 +111,9 @@ npm run test        # Ejecutar pruebas con Vitest
 | `/recover-password`   | `RecoverPassword`    | Público      | Recuperar contraseña               |
 | `/verify-code`        | `VerifyCodePage`     | Público      | Verificar código OTP               |
 | `/reset-password`     | `ResetPassword`      | Público      | Restablecer contraseña             |
-| `/partituras`         | `Partituras`         | 🔒 Protegido | Biblioteca de partituras           |
-| `/partituras/:id`     | `DetallePartitura`   | 🔒 Protegido | Detalle de una partitura           |
-| `/instrumentos`       | `Instrumentos`       | 🔒 Protegido | Catálogo de instrumentos           |
+| `/partituras`         | `Partituras`         | � Público    | Biblioteca de partituras           |
+| `/partituras/:id`     | `DetallePartitura`   | � Público    | Detalle de una partitura           |
+| `/instrumentos`       | `Instrumentos`       | � Público    | Catálogo de instrumentos           |
 | `/subir-partitura`    | `SubirPartitura`     | 🔒 Protegido | Formulario para subir PDF          |
 
 ---

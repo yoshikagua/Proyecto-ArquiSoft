@@ -53,27 +53,15 @@ const App = () => (
             */}
             <Route
               path="/partituras"
-              element={
-                <ProtectedRoute>
-                  <Partituras />
-                </ProtectedRoute>
-              }
+              element={<Partituras />}
             />
             <Route
               path="/partituras/:id"
-              element={
-                <ProtectedRoute>
-                  <DetallePartitura />
-                </ProtectedRoute>
-              }
+              element={<DetallePartitura />}
             />
             <Route
               path="/instrumentos"
-              element={
-                <ProtectedRoute>
-                  <Instrumentos />
-                </ProtectedRoute>
-              }
+              element={<Instrumentos />}
             />
             <Route
               path="/subir-partitura"

@@ -12,7 +12,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Music, Upload, BookOpen, Menu, X, LogOut, ChevronDown } from "lucide-react";
+import { Music, Upload, BookOpen, Menu, X, LogOut, ChevronDown, User } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 /** Definición de cada enlace de navegación */
@@ -44,11 +44,11 @@ const Navbar = () => {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    /** Rutas principales de la aplicación protegida */
+    /** Rutas principales de la aplicación */
     const navItems: NavItem[] = [
         { label: "Partituras", path: "/partituras", icon: <BookOpen className="h-4 w-4" /> },
         { label: "Instrumentos", path: "/instrumentos", icon: <Music className="h-4 w-4" /> },
-        { label: "Subir Partitura", path: "/subir-partitura", icon: <Upload className="h-4 w-4" /> },
+        ...(user ? [{ label: "Subir Partitura", path: "/subir-partitura", icon: <Upload className="h-4 w-4" /> }] : []),
     ];
 
     /** Determina si un enlace está activo comparando con la ruta actual */
@@ -98,41 +98,50 @@ const Navbar = () => {
                 <div className="hidden items-center gap-3 md:flex">
                     <div className="h-5 w-px bg-secondary/30" />
 
-                    {/* Menú desplegable del usuario */}
-                    <div ref={userMenuRef} className="relative">
-                        <button
-                            onClick={() => setUserMenuOpen(!userMenuOpen)}
-                            className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-secondary/15"
-                        >
-                            {/* Avatar circular con la inicial del usuario */}
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 font-serif text-sm font-bold text-primary">
-                                {user?.avatar ?? "?"}
-                            </div>
-                            <span className="max-w-[120px] truncate text-sm font-medium text-foreground">
-                                {user?.nombre ?? "Usuario"}
-                            </span>
-                            <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
-                        </button>
-
-                        {/* Dropdown */}
-                        {userMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-52 rounded-xl border border-secondary/20 bg-card shadow-lg py-1 animate-fade-in">
-                                {/* Info del usuario */}
-                                <div className="border-b border-secondary/10 px-4 py-3">
-                                    <p className="text-sm font-semibold text-foreground">{user?.nombre}</p>
-                                    <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                    {user ? (
+                        <div ref={userMenuRef} className="relative">
+                            <button
+                                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                                className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-secondary/15"
+                            >
+                                {/* Avatar circular con la inicial del usuario */}
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 font-serif text-sm font-bold text-primary">
+                                    {user.avatar ?? "?"}
                                 </div>
-                                {/* Cerrar sesión */}
-                                <button
-                                    onClick={handleLogout}
-                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                                >
-                                    <LogOut className="h-4 w-4" />
-                                    Cerrar sesión
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                                <span className="max-w-[120px] truncate text-sm font-medium text-foreground">
+                                    {user.nombre ?? "Usuario"}
+                                </span>
+                                <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                            </button>
+
+                            {/* Dropdown */}
+                            {userMenuOpen && (
+                                <div className="absolute right-0 top-full mt-1 w-52 rounded-xl border border-secondary/20 bg-card shadow-lg py-1 animate-fade-in">
+                                    {/* Info del usuario */}
+                                    <div className="border-b border-secondary/10 px-4 py-3">
+                                        <p className="text-sm font-semibold text-foreground">{user.nombre}</p>
+                                        <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                                    </div>
+                                    {/* Cerrar sesión */}
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        Cerrar sesión
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => navigate("/login")}
+                            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:opacity-90"
+                        >
+                            <User className="h-4 w-4" />
+                            Iniciar sesión
+                        </button>
+                    )}
                 </div>
 
                 {/* ── Botón menú móvil ── */}
@@ -148,8 +157,8 @@ const Navbar = () => {
             {/* ── Menú móvil desplegable ── */}
             {mobileOpen && (
                 <div className="border-t border-secondary/20 bg-card px-4 pb-4 shadow-md md:hidden">
-                    {/* Info del usuario */}
-                    {user && (
+                    {/* Info del usuario o Login */}
+                    {user ? (
                         <div className="flex items-center gap-3 border-b border-secondary/10 py-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 font-serif text-sm font-bold text-primary">
                                 {user.avatar}
@@ -158,6 +167,19 @@ const Navbar = () => {
                                 <p className="text-sm font-semibold text-foreground">{user.nombre}</p>
                                 <p className="text-xs text-muted-foreground">{user.email}</p>
                             </div>
+                        </div>
+                    ) : (
+                        <div className="border-b border-secondary/10 py-4">
+                            <button
+                                onClick={() => {
+                                    navigate("/login");
+                                    setMobileOpen(false);
+                                }}
+                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:opacity-90"
+                            >
+                                <User className="h-4 w-4" />
+                                Iniciar sesión
+                            </button>
                         </div>
                     )}
 
@@ -181,13 +203,15 @@ const Navbar = () => {
                         ))}
 
                         {/* Cerrar sesión móvil */}
-                        <button
-                            onClick={handleLogout}
-                            className="mt-1 flex items-center gap-2 rounded-lg border border-destructive/20 px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                            <LogOut className="h-4 w-4" />
-                            Cerrar sesión
-                        </button>
+                        {user && (
+                            <button
+                                onClick={handleLogout}
+                                className="mt-1 flex items-center gap-2 rounded-lg border border-destructive/20 px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                Cerrar sesión
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
