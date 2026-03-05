@@ -181,7 +181,10 @@ class Mutation:
         info: Info,
         id: str,
         title: str,
-        composer: str
+        composer: str,
+        genre: str,
+        format: str,
+        year: int
     ) -> ScoreType:
 
         # 🔐 Leer header Authorization
@@ -220,7 +223,7 @@ class Mutation:
             raise HTTPException(status_code=404, detail="Score not found or not owned by user")
 
         # Actualizar
-        update_data = {"title": title, "composer": composer}
+        update_data = {"title": title, "composer": composer, "genre": genre, "format": format, "year": year}
         await collection.update_one({"_id": ObjectId(id)}, {"$set": update_data})
 
         # Obtener el documento actualizado
@@ -230,5 +233,9 @@ class Mutation:
             id=str(updated_doc["_id"]),
             title=updated_doc["title"],
             composer=updated_doc["composer"],
+            genre=updated_doc["genre"],
+            format=updated_doc["format"],
+            year=updated_doc["year"],
+            uploaded_by=updated_doc["user_id"],
             file_url=f"http://localhost:9000/{settings.BUCKET_NAME}/{updated_doc['object_key']}",
         )

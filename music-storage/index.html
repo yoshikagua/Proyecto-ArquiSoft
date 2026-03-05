@@ -132,7 +132,7 @@
           |
           <button onclick="deleteScore('${score.id}')">Eliminar</button>
           |
-          <button onclick="editScore('${score.id}', '${score.title}', '${score.composer}')">Editar</button>
+          <button onclick="editScore('${score.id}', '${score.title}', '${score.composer}', '${score.genre}', '${score.format}', ${score.year})">Editar</button>
         `;
 
         list.appendChild(li);
@@ -165,11 +165,14 @@
 
     loadScores();
 
-    async function editScore(id, currentTitle, currentComposer) {
+    async function editScore(id, currentTitle, currentComposer, currentGenre, currentFormat, currentYear) {
       const newTitle = prompt("Nuevo título:", currentTitle);
       const newComposer = prompt("Nuevo compositor:", currentComposer);
+      const newGenre = prompt("Nuevo género:", currentGenre);
+      const newFormat = prompt("Nuevo formato:", currentFormat);
+      const newYear = prompt("Nuevo año:", currentYear);
 
-      if (newTitle && newComposer) {
+      if (newTitle && newComposer && newGenre && newFormat && newYear) {
         const response = await fetch(API_URL, {
           method: "POST",
           headers: {
@@ -179,10 +182,14 @@
           body: JSON.stringify({
             query: `
               mutation {
-                updateScore(id: "${id}", title: "${newTitle}", composer: "${newComposer}") {
+                updateScore(id: "${id}", title: "${newTitle}", composer: "${newComposer}", genre: "${newGenre}", format: "${newFormat}", year: ${newYear}) {
                   id
                   title
                   composer
+                  genre
+                  format
+                  year
+                  uploadedBy
                   fileUrl
                 }
               }
