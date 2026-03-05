@@ -11,6 +11,9 @@
   <form id="uploadForm">
     <input type="text" id="title" placeholder="Título" required /><br /><br />
     <input type="text" id="composer" placeholder="Compositor" required /><br /><br />
+    <input type="text" id="genre" placeholder="Género" required /><br><br>
+    <input type="text" id="format" placeholder="Formato (Banda, Orquesta...)" required /><br><br>
+    <input type="number" id="year" placeholder="Año de la obra" required /><br><br>
     <input type="file" id="file" required /><br /><br />
     <button type="submit">Subir</button>
   </form>
@@ -36,6 +39,9 @@
       const title = document.getElementById("title").value;
       const composer = document.getElementById("composer").value;
       const file = document.getElementById("file").files[0];
+      const genre = document.getElementById("genre").value;
+      const format = document.getElementById("format").value;
+      const year = parseInt(document.getElementById("year").value);
 
       const formData = new FormData();
 
@@ -44,12 +50,16 @@
         JSON.stringify({
           query: `
             mutation ($file: Upload!) {
-              uploadScore(title: "${title}", composer: "${composer}", file: $file) {
+              uploadScore(title: "${title}", composer: "${composer}", genre: "${genre}", formatType: "${format}", year: ${year}, file: $file) {
                 id
                 title
                 composer
+                genre
+                format
+                year
+                uploadedBy
                 fileUrl
-              }
+              } 
             }
           `,
           variables: { file: null }
@@ -88,6 +98,10 @@
                 id
                 title
                 composer
+                genre
+                format
+                year
+                uploadedBy
                 fileUrl
               }
             }
@@ -107,9 +121,16 @@
         li.innerHTML = `
           <strong>${score.title}</strong> - ${score.composer}
           <br/>
+          Género: ${score.genre} |
+          Formato: ${score.format} |
+          Año: ${score.year} |
+          Subido por: ${score.uploadedBy}
+          <br/>
           <a href="${score.fileUrl}" target="_blank">Abrir</a>
           |
           <a href="${score.fileUrl}" download>Descargar</a>
+          |
+          <button onclick="deleteScore('${score.id}')">Eliminar</button>
           |
           <button onclick="editScore('${score.id}', '${score.title}', '${score.composer}')">Editar</button>
         `;
@@ -117,6 +138,30 @@
         list.appendChild(li);
       });
     }
+
+
+    async function deleteScore(id) {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${AUTH_TOKEN}`
+        },
+        body: JSON.stringify({
+          query: `
+            mutation {
+              deleteScore(id: "${id}")
+            }
+          `
+        })
+      });
+
+      const result = await response.json();
+      console.log(result);
+
+      loadScores(); // recargar lista
+    }
+
 
     loadScores();
 
