@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // ── Contexto de autenticación ──
 import { AuthProvider } from "@/context/AuthContext";
+import { PartiturasProvider } from "@/context/PartiturasContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 // ── Páginas de autenticación (públicas) ──
@@ -21,6 +22,7 @@ import Partituras from "./pages/Partituras";
 import DetallePartitura from "./pages/DetallePartitura";
 import Instrumentos from "./pages/Instrumentos";
 import SubirPartitura from "./pages/SubirPartitura";
+import Perfil from "./pages/Perfil";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +38,7 @@ const App = () => (
           mediante el hook useAuth().
         */}
         <AuthProvider>
+          <PartiturasProvider>
           <Routes>
             {/* ── Raíz: redirige a /partituras (que a su vez guardará si no hay sesión) ── */}
             <Route path="/" element={<Navigate to="/partituras" replace />} />
@@ -71,10 +74,19 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/perfil"
+              element={
+                <ProtectedRoute>
+                  <Perfil />
+                </ProtectedRoute>
+              }
+            />
 
             {/* ── Catch-all ── */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </PartiturasProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -72,6 +72,7 @@ const Login = () => {
       nombre: email.split("@")[0],
       email,
       avatar: email.charAt(0).toUpperCase(),
+      role: email.includes("admin") ? "admin" : "user",
     });
     // ── Fin del mock ───────────────────────────────────────────────────────
 

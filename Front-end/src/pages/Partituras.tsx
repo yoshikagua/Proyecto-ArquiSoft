@@ -13,11 +13,13 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, BookOpen, ThumbsUp, Download, Star, X } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
-import { GENEROS, PARTITURAS_MOCK } from "@/mockData";
+import { GENEROS } from "@/mockData";
+import { usePartituras } from "@/context/PartiturasContext";
 import { Partitura } from "@/types";
 
 const Partituras = () => {
     const navigate = useNavigate();
+    const { partituras: PARTITURAS_DATA } = usePartituras();
 
     // ── Estado de filtros ──
     /** Texto de búsqueda ingresado por el usuario */
@@ -34,7 +36,7 @@ const Partituras = () => {
      * Se recalcula sólo cuando cambian los filtros (useMemo).
      */
     const partiturasFiltradas = useMemo<Partitura[]>(() => {
-        return PARTITURAS_MOCK.filter((p) => {
+        return PARTITURAS_DATA.filter((p) => {
             // Filtra por texto de búsqueda (caso insensible)
             const coincideBusqueda =
                 p.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -53,7 +55,7 @@ const Partituras = () => {
 
             return coincideBusqueda && coincideGenero && coincideInstrumento;
         });
-    }, [busqueda, generoActivo, instrumentoFiltro]);
+    }, [busqueda, generoActivo, instrumentoFiltro, PARTITURAS_DATA]);
 
     /** Limpia todos los filtros activos */
     const limpiarFiltros = () => {
@@ -81,7 +83,7 @@ const Partituras = () => {
                         Biblioteca de Partituras
                     </h1>
                     <p className="mt-3 text-muted-foreground">
-                        Explora nuestra colección de {PARTITURAS_MOCK.length} partituras musicales
+                        Explora nuestra colección de {PARTITURAS_DATA.length} partituras musicales
                     </p>
                 </div>
 

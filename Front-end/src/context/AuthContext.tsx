@@ -28,9 +28,13 @@ import {
 /** Datos mínimos del usuario que se guardan en sesión */
 export interface AuthUser {
     nombre: string;
+    apellido?: string;
     email: string;
     /** Inicial del avatar mostrado en la Navbar */
     avatar: string;
+    /** Rol del usuario */
+    role: "admin" | "user";
+    bio?: string;
 }
 
 interface AuthContextValue {

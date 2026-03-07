@@ -4,7 +4,7 @@
  * En producción, estos datos vendrían de llamadas a la API REST.
  */
 
-import { Instrumento, Partitura } from "./types";
+import { Instrumento, Partitura, Usuario } from "./types";
 
 /** Lista de partituras de muestra */
 export const PARTITURAS_MOCK: Partitura[] = [
@@ -222,4 +222,13 @@ export const CATEGORIAS_INSTRUMENTO = [
     "Viento metal",
     "Percusión",
     "Voz",
+];
+
+/** Usuarios de ejemplo para el panel de administración */
+export const USUARIOS_MOCK: Usuario[] = [
+    { id: "u1", nombre: "Carlos", apellido: "Ramírez", email: "carlos@correo.com", rol: "admin", bio: "Administrador de la plataforma." },
+    { id: "u2", nombre: "María", apellido: "González", email: "maria@correo.com", rol: "user", bio: "Pianista aficionada." },
+    { id: "u3", nombre: "Andrés", apellido: "Moreno", email: "andres@correo.com", rol: "user", bio: "Violinista profesional." },
+    { id: "u4", nombre: "Laura", apellido: "Pérez", email: "laura@correo.com", rol: "user" },
+    { id: "u5", nombre: "Diego", apellido: "Torres", email: "diego@correo.com", rol: "user", bio: "Compositor y arreglista." },
 ];

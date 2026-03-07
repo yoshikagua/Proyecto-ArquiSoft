@@ -12,7 +12,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Music, Upload, BookOpen, Menu, X, LogOut, ChevronDown, User } from "lucide-react";
+import { Music, Upload, BookOpen, Menu, X, LogOut, ChevronDown, User, Heart, FileText } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 /** Definición de cada enlace de navegación */
@@ -122,6 +122,29 @@ const Navbar = () => {
                                         <p className="text-sm font-semibold text-foreground">{user.nombre}</p>
                                         <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                                     </div>
+                                    {/* Links de perfil */}
+                                    {[
+                                        { tab: "info", label: "Mi Perfil", icon: <User className="h-4 w-4" /> },
+                                        { tab: "partituras", label: "Mis Partituras", icon: <FileText className="h-4 w-4" /> },
+                                        { tab: "favoritos", label: "Mis Favoritos", icon: <Heart className="h-4 w-4" /> },
+                                    ].map((item) => (
+                                        <button
+                                            key={item.tab}
+                                            onClick={() => {
+                                                if (location.pathname === "/perfil") {
+                                                    // Already on profile: update search params to switch tab
+                                                    navigate(`/perfil?tab=${item.tab}`, { replace: true });
+                                                } else {
+                                                    navigate(`/perfil?tab=${item.tab}`);
+                                                }
+                                                setUserMenuOpen(false);
+                                            }}
+                                            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-secondary/10 transition-colors"
+                                        >
+                                            {item.icon} {item.label}
+                                        </button>
+                                    ))}
+                                    <div className="border-t border-secondary/10 mt-1" />
                                     {/* Cerrar sesión */}
                                     <button
                                         onClick={handleLogout}

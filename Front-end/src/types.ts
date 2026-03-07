@@ -50,3 +50,13 @@ export interface Instrumento {
     /** Imágen ilustrativa (emoji o URL) */
     imagen: string;
 }
+
+/** Usuario registrado en la plataforma (para panel admin) */
+export interface Usuario {
+    id: string;
+    nombre: string;
+    apellido: string;
+    email: string;
+    rol: "admin" | "user";
+    bio?: string;
+}

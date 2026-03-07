@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { useAuth } from "@/context/AuthContext";
-import { PARTITURAS_MOCK } from "@/mockData";
+import { usePartituras } from "@/context/PartiturasContext";
 import { Comentario } from "@/types";
 import {
     AlertDialog,
@@ -43,14 +43,14 @@ import {
 const DetallePartitura = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { partituras, toggleFavorito } = usePartituras();
 
-    // Busca la partitura en el mock por su ID
-    const partituraBase = PARTITURAS_MOCK.find((p) => p.id === id);
+    // Busca la partitura en el estado compartido por su ID
+    const partituraBase = partituras.find((p) => p.id === id);
 
     // ── Estado local basado en los datos de la partitura ──
     const [likes, setLikes] = useState(partituraBase?.likes ?? 0);
     const [liked, setLiked] = useState(false);
-    const [favorito, setFavorito] = useState(partituraBase?.favorito ?? false);
     const [comentarios, setComentarios] = useState<Comentario[]>(
         partituraBase?.comentarios ?? []
     );
@@ -121,8 +121,10 @@ const DetallePartitura = () => {
             setShowLoginAlert(true);
             return;
         }
-        setFavorito(!favorito);
+        toggleFavorito(partituraBase.id);
     };
+
+    const favorito = partituraBase.favorito;
 
     /** Simula la descarga del archivo PDF de la partitura */
     const handleDescargar = () => {
