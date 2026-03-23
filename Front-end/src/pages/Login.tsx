@@ -4,13 +4,11 @@
  *
  * Flujo:
  * 1. El usuario ingresa correo y contraseña.
- * 2. Se llama a `login()` del AuthContext con un token mock y datos de usuario.
- * 3. Si el usuario intentó entrar a una ruta protegida antes del login,
+ * 2. Se llama a authApi.login() que proxía al gateway (/api/auth/login).
+ * 3. El gateway proxía a User_api (/auth/login).
+ * 4. Recibe el JWT y datos del usuario, los guarda en el contexto de autenticación.
+ * 5. Si el usuario intentó entrar a una ruta protegida antes del login,
  *    se redirige a esa ruta; de lo contrario a /partituras.
- *
- * INTEGRACIÓN CON BACKEND:
- * Reemplaza el bloque "── Mock de autenticación ──" con una llamada real
- * a POST /auth/login y usa el token JWT devuelto.
  */
 
 import { useState } from "react";
@@ -19,6 +17,7 @@ import { Mail, Lock, ArrowLeft } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import AuthLayout from "@/layouts/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
+import { authApi, ApiClientError } from "@/lib/apiClient";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -42,43 +41,55 @@ const Login = () => {
     setError("");
     setLoading(true);
 
-    // ── Mock de autenticación ──────────────────────────────────────────────
-    // TODO: Reemplazar este bloque con la llamada real al backend:
-    //
-    //   const { data } = await apiClient.post("/auth/login", { email, password });
-    //   login(data.access_token, {
-    //     nombre: data.user.nombre,
-    //     email:  data.user.email,
-    //     avatar: data.user.nombre.charAt(0).toUpperCase(),
-    //   });
-    //
-    await new Promise((r) => setTimeout(r, 800)); // simula latencia de red
-
-    // Validación básica para la demo
+    // Validación básica
     if (!email || !password) {
       setError("Completa todos los campos.");
       setLoading(false);
       return;
     }
 
-    if (password.length < 3) {
-      setError("Correo o contraseña incorrectos. Inténtalo de nuevo.");
+    try {
+      // Llamada real al gateway (POST /api/auth/login)
+      // El gateway proxía a User_api (POST /auth/login)
+      const response = await authApi.login({ email, password });
+
+      // Guardar el token JWT en localStorage
+      localStorage.setItem("auth_token", response.access_token);
+
+      // Guardar sesión en el contexto de autenticación
+      const firstName = response.user?.first_name || response.user?.nombre || email.split("@")[0];
+      const lastName = response.user?.last_name || "";
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      login(response.access_token, {
+        nombre: fullName,
+        avatar: firstName.charAt(0).toUpperCase(),
+        email: response.user?.email || email,
+        role: (response.user?.role || "user") as "admin" | "user",
+      });
+
+      // Redirigir a la ruta de origen (o /partituras)
+      navigate(from, { replace: true });
+    } catch (err) {
+      // Manejo de errores de la API
+      if (err instanceof ApiClientError) {
+        if (err.status === 0) {
+          setError(
+            "No se pudo conectar con el servidor. Verifica que el gateway esté corriendo en localhost:8000"
+          );
+        } else if (err.status === 401) {
+          setError("Correo o contraseña incorrectos. Inténtalo de nuevo.");
+        } else if (err.status === 503) {
+          setError("El servicio de autenticación no está disponible. Intenta más tarde.");
+        } else {
+          setError(err.message || "Error en la autenticación");
+        }
+      } else {
+        setError("Error desconocido durante la autenticación");
+      }
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Guardar sesión mock en el contexto de autenticación
-    login("mock_jwt_token_" + Date.now(), {
-      nombre: email.split("@")[0],
-      email,
-      avatar: email.charAt(0).toUpperCase(),
-      role: email.includes("admin") ? "admin" : "user",
-    });
-    // ── Fin del mock ───────────────────────────────────────────────────────
-
-    // Redirigir a la ruta de origen (o /partituras)
-    navigate(from, { replace: true });
-    setLoading(false);
   };
 
   return (

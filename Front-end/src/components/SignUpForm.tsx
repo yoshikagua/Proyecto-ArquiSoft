@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { authApi, ApiClientError } from "@/lib/apiClient";
+import { useNavigate } from "react-router-dom";
 
 const signUpSchema = z
   .object({
@@ -31,6 +33,8 @@ type SignUpData = z.infer<typeof signUpSchema>;
 const SignUpForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   const {
     register,
@@ -41,11 +45,52 @@ const SignUpForm = () => {
     mode: "onChange",
   });
 
-  const onSubmit = (data: SignUpData) => {
-    toast.success("¡Cuenta creada! Ya puedes iniciar sesión. En tu correo te damos la bienvenida", {
-      duration: 5000,
-    });
-    console.log("Sign up data:", { ...data, password: "***", confirmPassword: "***" });
+  const onSubmit = async (data: SignUpData) => {
+    setIsSubmitting(true);
+
+    try {
+      // Llamada real al gateway (POST /api/auth/signup)
+      // El gateway proxía a User_api (POST /auth/register)
+      // y transforma el payload: nombre -> first_name/last_name
+      await authApi.signup({
+        email: data.email,
+        password: data.password,
+        name: `${data.nombre} ${data.apellido}`,
+        first_name: data.nombre,
+        last_name: data.apellido,
+      });
+
+      toast.success(
+        "¡Cuenta creada exitosamente! Ya puedes iniciar sesión.",
+        { duration: 4000 }
+      );
+
+      // Redirigir a la página de login después de 1 segundo
+      setTimeout(() => {
+        navigate("/login");
+      }, 1000);
+    } catch (err) {
+      // Manejo de errores
+      if (err instanceof ApiClientError) {
+        if (err.status === 0) {
+          toast.error(
+            "No se pudo conectar con el servidor. Verifica que el gateway esté corriendo en localhost:8000"
+          );
+        } else if (err.status === 409) {
+          toast.error("Este correo ya está registrado. Intenta con otro.");
+        } else if (err.status === 422) {
+          toast.error("Los datos proporcionados no son válidos.");
+        } else if (err.status === 503) {
+          toast.error("El servicio de autenticación no está disponible.");
+        } else {
+          toast.error(err.message || "Error al crear la cuenta");
+        }
+      } else {
+        toast.error("Error desconocido durante el registro");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isFieldValid = (field: keyof SignUpData) =>
@@ -149,11 +194,11 @@ const SignUpForm = () => {
 
       <Button
         type="submit"
-        disabled={!isValid}
+        disabled={!isValid || isSubmitting}
         className="w-full text-base font-medium transition-colors"
         size="lg"
       >
-        Crear Cuenta
+        {isSubmitting ? "Creando cuenta..." : "Crear Cuenta"}
       </Button>
     </form>
   );
