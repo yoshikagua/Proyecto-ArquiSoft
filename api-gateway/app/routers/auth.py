@@ -18,7 +18,10 @@ class LoginRequest(BaseModel):
 class SignUpRequest(BaseModel):
     email: str
     password: str
-    name: str
+    name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    role_id: int | None = None
 
 
 @router.post("/login")
@@ -30,8 +33,8 @@ async def login(request: LoginRequest):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{settings.user_api_url}/api/auth/login",
-                json=request.dict(),
+                f"{settings.user_api_url}/auth/login",
+                json=request.model_dump(),
                 timeout=30.0
             )
         
@@ -57,10 +60,24 @@ async def signup(request: SignUpRequest):
     Redirecciona la solicitud a la API de usuarios.
     """
     try:
+        full_name_parts = (request.name or "").strip().split()
+        first_name = request.first_name or (full_name_parts[0] if full_name_parts else "User")
+        last_name = request.last_name or (
+            " ".join(full_name_parts[1:]) if len(full_name_parts) > 1 else "User"
+        )
+
+        upstream_payload = {
+            "email": request.email,
+            "password": request.password,
+            "first_name": first_name,
+            "last_name": last_name,
+            "role_id": request.role_id,
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{settings.user_api_url}/api/auth/signup",
-                json=request.dict(),
+                f"{settings.user_api_url}/auth/register",
+                json=upstream_payload,
                 timeout=30.0
             )
         
