@@ -9,9 +9,9 @@ Este test simula un usuario real navegando por la aplicación:
 4. Si User_API está DOWN: retorna 503 Service Unavailable
 
 Ejecutar con:
-  python -m pytest tests/test_e2e_integration.py -v -s
+  python -m pytest tests/e2e/test_e2e_integration.py -v -s
 o:
-  python tests/test_e2e_integration.py
+  python tests/e2e/test_e2e_integration.py
 """
 
 import unittest

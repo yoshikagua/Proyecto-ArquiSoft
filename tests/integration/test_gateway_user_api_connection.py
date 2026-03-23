@@ -7,7 +7,7 @@ import importlib
 from fastapi.testclient import TestClient
 import httpx
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 API_GATEWAY_DIR = ROOT / "api-gateway"
 if str(API_GATEWAY_DIR) not in sys.path:
     sys.path.insert(0, str(API_GATEWAY_DIR))

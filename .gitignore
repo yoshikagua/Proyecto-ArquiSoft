@@ -23,6 +23,12 @@ wheels/
 .installed.cfg
 *.egg
 
+# Node.js / Bun
+node_modules/
+bun.lock
+bun.lockb
+*.lint_output.txt
+
 # Environment files
 .env
 .env.local
@@ -34,6 +40,10 @@ wheels/
 *.swp
 *.swo
 *~
+
+# Rust
+target/
+Cargo.lock
 
 # OS
 .DS_Store

@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: proyectosoft-postgres
+    environment:
+      POSTGRES_USER: authuser
+      POSTGRES_PASSWORD: authpass
+      POSTGRES_DB: auth_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authuser -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: proyectosoft-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  user-api:
+    build:
+      context: ./auth-api
+    container_name: proyectosoft-user-api
+    environment:
+      DATABASE_URL: postgres://authuser:authpass@postgres:5432/auth_db
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
+      MAIL_SMTP_HOST: mailhog
+      MAIL_SMTP_PORT: 1025
+      MAIL_FROM: noreply@localhost
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: proyectosoft-api-gateway
+    environment:
+      DEBUG: "True"
+      GATEWAY_PORT: 8000
+      USER_API_URL: http://user-api:3000
+      FRONTEND_URL: http://localhost:8080
+    ports:
+      - "8000:8000"
+    depends_on:
+      user-api:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./Front-end
+    container_name: proyectosoft-frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "8080:8080"
+    depends_on:
+      api-gateway:
+        condition: service_started
+
+volumes:
+  postgres_data:

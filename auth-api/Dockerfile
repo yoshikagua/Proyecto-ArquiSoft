@@ -16,7 +16,6 @@ RUN cargo install sqlx-cli --version 0.7.4 --no-default-features --features nati
 
 COPY --from=builder /app/target/release/auth-api /usr/local/bin/auth-api
 COPY --from=builder /app/migrations /app/migrations
-COPY .env .
 EXPOSE 3000
 
 # Entrypoint: ejecutar migraciones y luego iniciar el binario

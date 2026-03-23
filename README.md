@@ -8,15 +8,19 @@ Aplicación web para gestionar y compartir una biblioteca digital de partituras 
 
 | Carpeta    | Descripción                                          |
 |------------|------------------------------------------------------|
-| `Front-end/` | Aplicación React + Vite. Ver [README](./Front-end/README.md) completo. |
+| `Front-end/` | Aplicación React + Vite. Ver [README](./Front-end/README.md). |
+| `api-gateway/` | API Gateway en FastAPI para enrutar y transformar requests. |
+| `auth-api/` | Servicio de autenticación en Rust/Axum. |
+| `tests/` | Suite de pruebas organizada en `e2e`, `integration` y `validation`. |
 
-> El backend (microservicios, API Gateway, etc.) reside en repositorios separados del equipo.
+El proyecto se mantiene en este mismo repositorio (frontend + servicios + documentación).
 
-## 🔌 Integración con backend
+## 🔌 Documentación técnica
 
-Una vez que los endpoints estén disponibles, consulta la guía de integración:
-
-📄 **[Front-end/BACKEND_INTEGRATION.md](./Front-end/BACKEND_INTEGRATION.md)**
+- 📄 [QUICK_START.md](./QUICK_START.md) – Puesta en marcha rápida
+- 📄 [DOCKER_COMPOSE_GUIDE.md](./DOCKER_COMPOSE_GUIDE.md) – Uso de stacks Docker Compose
+- 📄 [FRONTEND_GATEWAY_INTEGRATION.md](./FRONTEND_GATEWAY_INTEGRATION.md) – Flujo Frontend ↔ Gateway ↔ User API
+- 📄 [tests/README.md](./tests/README.md) – Estructura y ejecución de tests
 
 ---
 

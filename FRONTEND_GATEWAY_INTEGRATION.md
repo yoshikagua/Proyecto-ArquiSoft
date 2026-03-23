@@ -301,8 +301,8 @@ curl -X OPTIONS http://localhost:8000/api/auth/login \
 - ✅ `Front-end/src/components/SignUpForm.tsx` - Integración con API real
 
 ### Tests Añadidos
-- ✅ `tests/test_frontend_gateway_connection.py` - Validación de conexiones
-- ✅ `tests/test_gateway_user_api_connection.py` - (Existente)
+- ✅ `tests/integration/test_frontend_gateway_connection.py` - Validación de conexiones
+- ✅ `tests/integration/test_gateway_user_api_connection.py` - Integración Gateway ↔ User_API
 
 ---
 
@@ -310,13 +310,13 @@ curl -X OPTIONS http://localhost:8000/api/auth/login \
 
 ```bash
 # Todos los tests
-python -m unittest discover -s tests -v
+python -m pytest tests/ -v
 
 # Solo tests de integración frontend-gateway
-python -m unittest tests.test_frontend_gateway_connection -v
+python -m pytest tests/integration/test_frontend_gateway_connection.py -v
 
 # Solo tests de integración gateway-user_api
-python -m unittest tests.test_gateway_user_api_connection -v
+python -m pytest tests/integration/test_gateway_user_api_connection.py -v
 ```
 
 ---
@@ -369,5 +369,6 @@ Si algo no funciona:
 - Frontend: `Front-end/src/lib/apiClient.ts`
 - Gateway: `api-gateway/app/routers/auth.py`
 - User_API: `auth-api/src/handlers/auth_handler.rs`
-- Tests unitarios: `tests/test_*.py`
+- Tests de integración: `tests/integration/*.py`
+- Tests E2E: `tests/e2e/*.py`
 
