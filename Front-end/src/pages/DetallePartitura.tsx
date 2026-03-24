@@ -43,17 +43,10 @@ import {
 const DetallePartitura = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { partituras, toggleFavorito } = usePartituras();
+    const { partituras, toggleFavorito, toggleLike, addComentario } = usePartituras();
 
     // Busca la partitura en el estado compartido por su ID
     const partituraBase = partituras.find((p) => p.id === id);
-
-    // ── Estado local basado en los datos de la partitura ──
-    const [likes, setLikes] = useState(partituraBase?.likes ?? 0);
-    const [liked, setLiked] = useState(false);
-    const [comentarios, setComentarios] = useState<Comentario[]>(
-        partituraBase?.comentarios ?? []
-    );
 
     // ── Estado del formulario de comentario ──
     const [nuevoComentario, setNuevoComentario] = useState("");
@@ -107,13 +100,7 @@ const DetallePartitura = () => {
             setShowLoginAlert(true);
             return;
         }
-        if (liked) {
-            setLikes((prev) => prev - 1);
-            setLiked(false);
-        } else {
-            setLikes((prev) => prev + 1);
-            setLiked(true);
-        }
+        toggleLike(partituraBase.id);
     };
 
     const handleFavorito = () => {
@@ -125,6 +112,9 @@ const DetallePartitura = () => {
     };
 
     const favorito = partituraBase.favorito;
+    const liked = partituraBase.liked ?? false;
+    const likes = partituraBase.likes;
+    const comentarios = partituraBase.comentarios ?? [];
 
     /** Simula la descarga del archivo PDF de la partitura */
     const handleDescargar = () => {
@@ -152,7 +142,7 @@ const DetallePartitura = () => {
             fecha: new Date().toISOString(),
         };
 
-        setComentarios((prev) => [...prev, nuevo]);
+        addComentario(partituraBase.id, nuevo);
         setNuevoComentario("");
         setEnviandoComentario(false);
     };

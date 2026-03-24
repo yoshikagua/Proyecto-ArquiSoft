@@ -16,6 +16,8 @@ export interface Partitura {
     instrumentos: string[];
     /** Número de likes recibidos */
     likes: number;
+    /** Indica si el usuario actual le dio like */
+    liked?: boolean;
     /** Número de descargas */
     descargas: number;
     /** Indica si el usuario la ha marcado como favorita */

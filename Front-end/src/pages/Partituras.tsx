@@ -283,7 +283,7 @@ const PartituraCard = ({ partitura, onClick }: PartituraCardProps) => {
             <div className="mt-4 flex items-center gap-4 border-t border-secondary/10 pt-4">
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <ThumbsUp
-                        className={`h-3.5 w-3.5 ${partitura.favorito ? "fill-primary text-primary" : ""}`}
+                        className={`h-3.5 w-3.5 ${partitura.liked ? "fill-primary text-primary" : ""}`}
                     />
                     {partitura.likes}
                 </span>

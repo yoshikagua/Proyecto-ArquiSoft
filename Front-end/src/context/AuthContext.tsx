@@ -99,6 +99,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } else {
             localStorage.removeItem("auth_user");
             localStorage.removeItem("access_token");
+            localStorage.removeItem("auth_token");
         }
     }, [user]);
 
@@ -111,6 +112,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
      */
     const login = (token: string, userData: AuthUser) => {
         localStorage.setItem("access_token", token);
+        localStorage.setItem("auth_token", token);
         setUser(userData);
     };
 

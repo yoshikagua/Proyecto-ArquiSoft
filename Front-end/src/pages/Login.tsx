@@ -53,9 +53,6 @@ const Login = () => {
       // El gateway proxía a User_api (POST /auth/login)
       const response = await authApi.login({ email, password });
 
-      // Guardar el token JWT en localStorage
-      localStorage.setItem("auth_token", response.access_token);
-
       // Guardar sesión en el contexto de autenticación
       const firstName = response.user?.first_name || response.user?.nombre || email.split("@")[0];
       const lastName = response.user?.last_name || "";
