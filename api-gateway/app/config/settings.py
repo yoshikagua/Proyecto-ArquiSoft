@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     
     # URL de servicios
     user_api_url: str = "http://localhost:3000"
+    music_storage_url: str = "http://localhost:8001/storage"
     frontend_url: str = "http://localhost:8080"
     
     # Puerto del Gateway

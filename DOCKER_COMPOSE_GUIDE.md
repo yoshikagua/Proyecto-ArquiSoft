@@ -12,6 +12,7 @@ Este documento explica cómo usar los diferentes docker-compose.yml disponibles 
 - PostgreSQL (base de datos)
 - MailHog (testing de emails)
 - User API (autenticación - Rust/Axum)
+- Music Storage (FastAPI + GraphQL + MongoDB + MinIO)
 - API Gateway (enrutador - FastAPI)
 - Frontend (interfaz - React/Vite)
 
@@ -34,6 +35,9 @@ docker compose down  # Detener
 - Frontend: http://localhost:8080
 - API Gateway: http://localhost:8000
 - User API: http://localhost:3000
+- Music Storage (directo): http://localhost:8001/storage
+- MinIO Console: http://localhost:9001
+- MongoDB: localhost:27017
 - MailHog: http://localhost:8025
 
 ---
@@ -77,6 +81,7 @@ docker compose down
 - PostgreSQL
 - MailHog
 - User API (dependencia)
+- Music Storage (dependencia)
 - API Gateway (FastAPI)
 
 **Cuándo usarlo**:
@@ -97,6 +102,8 @@ docker compose down
 **Acceso**:
 - API Gateway: http://localhost:8000
 - User API: http://localhost:3000
+- Music Storage (directo): http://localhost:8001/storage
+- MinIO Console: http://localhost:9001
 - MailHog: http://localhost:8025
 
 ---
@@ -109,6 +116,7 @@ docker compose down
 - PostgreSQL
 - MailHog
 - User API
+- Music Storage
 - API Gateway
 - Frontend (React/Vite)
 
@@ -131,6 +139,8 @@ docker compose down
 - Frontend: http://localhost:8080
 - API Gateway: http://localhost:8000
 - User API: http://localhost:3000
+- Music Storage (directo): http://localhost:8001/storage
+- MinIO Console: http://localhost:9001
 - MailHog: http://localhost:8025
 
 ---

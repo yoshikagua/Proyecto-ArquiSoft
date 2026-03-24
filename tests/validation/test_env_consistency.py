@@ -38,6 +38,7 @@ class TestEnvironmentVariablesConsistency(unittest.TestCase):
             "api-gateway": cls.project_root / "api-gateway" / ".env.example",
             "auth-api": cls.project_root / "auth-api" / ".env.example",
             "frontend": cls.project_root / "Front-end" / ".env.example",
+            "music-storage": cls.project_root / "music-storage" / ".env.example",
         }
         
         # Cargar contenido de .env.example
@@ -69,6 +70,7 @@ class TestEnvironmentVariablesConsistency(unittest.TestCase):
         
         required_vars = [
             "USER_API_URL",
+            "MUSIC_STORAGE_URL",
             "JWT_SECRET",
         ]
         
@@ -112,6 +114,28 @@ class TestEnvironmentVariablesConsistency(unittest.TestCase):
                 var,
                 env,
                 f"frontend: Missing {var} in .env.example"
+            )
+            print(f"   ✓ {var} documented")
+
+    def test_04b_music_storage_env_variables(self):
+        """Verificar variables de entorno de music-storage"""
+        print("\n🟢 TEST 4B: Music Storage Environment Variables")
+
+        env = self.env_content.get("music-storage", "")
+
+        required_vars = [
+            "MONGO_URI",
+            "MINIO_ENDPOINT",
+            "MINIO_ROOT_USER",
+            "MINIO_ROOT_PASSWORD",
+            "JWT_SECRET",
+        ]
+
+        for var in required_vars:
+            self.assertIn(
+                var,
+                env,
+                f"music-storage: Missing {var} in .env.example"
             )
             print(f"   ✓ {var} documented")
 

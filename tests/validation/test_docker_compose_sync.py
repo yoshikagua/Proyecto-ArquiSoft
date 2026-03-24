@@ -130,9 +130,12 @@ class TestDockerComposeSynchronization(unittest.TestCase):
         expected_ports = {
             "postgres": [5432],
             "user-api": [3000],
+            "music-storage": [8001],
             "api-gateway": [8000],
             "frontend": [8080],
             "mailhog": [1025, 8025],
+            "mongo": [27017],
+            "minio": [9000, 9001],
         }
         
         for name, compose in self.compose_loaded.items():
@@ -226,6 +229,7 @@ class TestDockerComposeSynchronization(unittest.TestCase):
             "api-gateway": self.project_root / "api-gateway" / ".env.example",
             "auth-api": self.project_root / "auth-api" / ".env.example",
             "Front-end": self.project_root / "Front-end" / ".env.example",
+            "music-storage": self.project_root / "music-storage" / ".env.example",
         }
         
         for service_name, env_file_path in required_env_files.items():
@@ -316,6 +320,15 @@ class TestEnvironmentConsistency(unittest.TestCase):
                 self.assertIn("JWT_SECRET", content or "",
                     f"{service_name}: JWT_SECRET not in .env.example")
                 print(f"   ✓ {service_name}: JWT_SECRET defined")
+
+            if service_name == "music-storage":
+                self.assertIn("MONGO_URI", content, 
+                    f"{service_name}: MONGO_URI not in .env.example")
+                self.assertIn("MINIO_ENDPOINT", content,
+                    f"{service_name}: MINIO_ENDPOINT not in .env.example")
+                self.assertIn("JWT_SECRET", content,
+                    f"{service_name}: JWT_SECRET not in .env.example")
+                print(f"   ✓ {service_name}: MONGO_URI, MINIO_ENDPOINT, JWT_SECRET defined")
 
 
 if __name__ == "__main__":
