@@ -42,7 +42,7 @@ Front-end/
 │   │   ├── DetallePartitura.tsx# � Detalle partitura (Lectura pública, acciones protegidas)
 │   │   ├── Instrumentos.tsx    # � Lista de instrumentos (Pública)
 │   │   └── SubirPartitura.tsx  # 🔒 Formulario para subir partituras (Protegido)
-│   ├── mockData.ts        # Datos de ejemplo (reemplazar con llamadas API)
+│   ├── mockData.ts        # Datos de respaldo para desarrollo local
 │   ├── types.ts           # Interfaces TypeScript globales
 │   └── App.tsx            # Definición de rutas + AuthProvider
 ├── tailwind.config.ts     # Paleta de colores y tipografía del proyecto
@@ -130,7 +130,6 @@ La aplicación implementa autenticación con sesión persistida en `localStorage
 | `src/components/Navbar.tsx` | Muestra avatar del usuario y opción de cerrar sesión |
 
 La sesión sobrevive recargas de página (token + datos en `localStorage`).
-Al integrar el backend real, solo hay que reemplazar el bloque `TODO` en `Login.tsx`.
 
 ---
 
@@ -138,13 +137,14 @@ Al integrar el backend real, solo hay que reemplazar el bloque `TODO` en `Login.
 
 Estado actual:
 
-- Login y registro: conectados al backend real vía gateway (`/api/auth/login`, `/api/auth/signup`).
-- Health check de auth: disponible vía gateway (`/api/auth/health`).
-- Otras vistas (partituras/instrumentos): pueden convivir con secciones mock según módulo.
+- Login, registro y recuperación de contraseña: conectados al backend real vía gateway.
+- Perfil y actualización de usuario: conectados vía `/api/auth/me` y `/api/auth/users/{id}`.
+- Biblioteca, catálogo (géneros/instrumentos/formatos), likes/favoritos/comentarios/descargas y subida de partituras: conectados a `music-storage` vía `/api/storage`.
+- Panel admin: consume listado de usuarios vía gateway (`GET /api/auth/users`) según permisos.
 
 Guía detallada:
 
-📄 **[BACKEND_INTEGRATION.md](./BACKEND_INTEGRATION.md)**
+📄 **[../api-gateway/README.md](../api-gateway/README.md)**
 
 ---
 

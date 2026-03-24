@@ -97,9 +97,12 @@ docker compose down -v
 
 ## Notas
 
-- El frontend ya consume login/signup reales por gateway.
-- `api-gateway` expone auth y storage; el resto de rutas de auth avanzadas pueden agregarse después.
+- El frontend consume auth y storage por gateway (`/api/auth/*`, `/api/storage`).
+- Flujos de recuperación de contraseña (`recover`, `verify-recovery-code`, `reset-password`) están activos.
+- Perfil de usuario (`/api/auth/me`, `PUT /api/auth/users/{id}`) está integrado.
+- Gestión de usuarios (`GET /api/auth/users`) requiere token válido y permisos del auth-api.
 - Para detalles técnicos, ver:
   - [DOCKER_COMPOSE_GUIDE.md](./DOCKER_COMPOSE_GUIDE.md)
-  - [FRONTEND_GATEWAY_INTEGRATION.md](./FRONTEND_GATEWAY_INTEGRATION.md)
+  - [Front-end/README.md](./Front-end/README.md)
+  - [api-gateway/README.md](./api-gateway/README.md)
   - [tests/README.md](./tests/README.md)

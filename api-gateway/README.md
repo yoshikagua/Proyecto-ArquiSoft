@@ -48,6 +48,12 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 - `POST /api/auth/login` → proxy a `POST /auth/login`
 - `POST /api/auth/signup` → proxy a `POST /auth/register`
+- `GET /api/auth/me` → proxy a `GET /auth/me`
+- `GET /api/auth/users` → proxy a `GET /auth/users`
+- `PUT /api/auth/users/{id}` → proxy a `PUT /auth/users/:id`
+- `POST /api/auth/recover` → proxy a `POST /auth/recover`
+- `POST /api/auth/verify-recovery-code` → proxy a `POST /auth/verify-recovery-code`
+- `POST /api/auth/reset-password` → proxy a `POST /auth/reset-password`
 - `GET /api/auth/health` → estado y URLs configuradas
 
 ### Storage
@@ -95,5 +101,4 @@ docker compose logs -f api-gateway
 
 ## Notas
 
-- `logout` y `me` aún no están expuestos por el gateway en el estado actual.
 - CORS está abierto para desarrollo y debe restringirse para producción.

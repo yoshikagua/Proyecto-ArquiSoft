@@ -117,14 +117,17 @@ python -m pytest tests/e2e/ -q
 
 - [QUICK_START.md](./QUICK_START.md)
 - [DOCKER_COMPOSE_GUIDE.md](./DOCKER_COMPOSE_GUIDE.md)
-- [FRONTEND_GATEWAY_INTEGRATION.md](./FRONTEND_GATEWAY_INTEGRATION.md)
 - [tests/README.md](./tests/README.md)
+- [Front-end/README.md](./Front-end/README.md)
+- [api-gateway/README.md](./api-gateway/README.md)
+- [auth-api/README.md](./auth-api/README.md)
 
 ---
 
 ## 📌 Estado actual
 
 - Stack Docker completo funcional
-- Integración frontend-gateway-auth operativa
-- Integración gateway-storage operativa
+- Integración frontend-gateway-auth-storage operativa
+- Recuperación de contraseña operativa vía gateway
+- Perfil y catálogo conectados al backend
 - Suite de pruebas de validación, integración y E2E pasando

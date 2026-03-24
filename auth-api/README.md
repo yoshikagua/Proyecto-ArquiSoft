@@ -39,6 +39,18 @@ Microservicio de autenticación y gestión de usuarios de KuisiScore.
 
 ---
 
+## Modelo de roles
+
+La API trabaja con tres roles:
+
+- `user` (rol base)
+- `admin` (gestión limitada)
+- `superadmin` (dueño de la plataforma)
+
+La autorización de `PUT /auth/users/:id` respeta esta jerarquía.
+
+---
+
 ## Ejecución local
 
 ```bash
