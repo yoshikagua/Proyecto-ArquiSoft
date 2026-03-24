@@ -7,6 +7,7 @@
 /** Representa una partitura musical en la biblioteca */
 export interface Partitura {
     id: string;
+    uploadedBy?: string;
     titulo: string;
     autor: string;
     anio: number;
@@ -59,6 +60,6 @@ export interface Usuario {
     nombre: string;
     apellido: string;
     email: string;
-    rol: "admin" | "user";
+    rol: "admin" | "user" | "superadmin";
     bio?: string;
 }

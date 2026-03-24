@@ -1,8 +1,6 @@
 # NOTE: Este compose es SOLO para desarrollo local y testing de auth-api
 # Para ambiente completo con frontend y gateway, usar docker-compose.yml en la raíz del proyecto
 # Uso: docker compose up -d (desde este directorio)
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine

@@ -19,6 +19,13 @@ import AuthLayout from "@/layouts/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
 import { authApi, ApiClientError } from "@/lib/apiClient";
 
+const normalizeRole = (role?: string): "user" | "admin" | "superadmin" => {
+  const normalized = (role || "").toLowerCase();
+  if (normalized.includes("super")) return "superadmin";
+  if (normalized.includes("admin")) return "admin";
+  return "user";
+};
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,17 +59,25 @@ const Login = () => {
       // Llamada real al gateway (POST /api/auth/login)
       // El gateway proxía a User_api (POST /auth/login)
       const response = await authApi.login({ email, password });
+      const token = response.access_token || response.token;
+
+      if (!token) {
+        throw new ApiClientError("Respuesta de autenticación inválida: token ausente", 500, {
+          message: "Token ausente",
+        });
+      }
 
       // Guardar sesión en el contexto de autenticación
       const firstName = response.user?.first_name || response.user?.nombre || email.split("@")[0];
       const lastName = response.user?.last_name || "";
       const fullName = `${firstName} ${lastName}`.trim();
 
-      login(response.access_token, {
+      login(token, {
+        id: response.user?.id ? Number(response.user.id) : undefined,
         nombre: fullName,
         avatar: firstName.charAt(0).toUpperCase(),
         email: response.user?.email || email,
-        role: (response.user?.role || "user") as "admin" | "user",
+        role: normalizeRole(response.user?.role),
       });
 
       // Redirigir a la ruta de origen (o /partituras)

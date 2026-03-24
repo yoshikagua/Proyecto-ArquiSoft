@@ -9,7 +9,9 @@ def build_score_document(
     filename,
     content_type,
     object_key,
-    user_id: str
+    user_id: str,
+    description: str = "",
+    instruments: list[str] | None = None,
 ):
     return {
         "title": title,
@@ -21,5 +23,12 @@ def build_score_document(
         "user_id": user_id,
         "content_type": content_type,
         "object_key": object_key,
+        "description": description,
+        "instruments": instruments or [],
+        "likes_count": 0,
+        "downloads": 0,
+        "liked_by": [],
+        "favorited_by": [],
+        "comments": [],
         "created_at": datetime.utcnow(),
     }

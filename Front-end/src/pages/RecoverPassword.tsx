@@ -1,10 +1,12 @@
 import { Mail } from "lucide-react";
+import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 
 import AuthLayout from "@/layouts/AuthLayout";
+import { ApiClientError, authApi } from "@/lib/apiClient";
 
 const schema = z.object({
   email: z
@@ -17,6 +19,8 @@ type FormData = z.infer<typeof schema>;
 
 const RecoverPassword = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const {
     register,
@@ -27,8 +31,23 @@ const RecoverPassword = () => {
     mode: "onChange",
   });
 
-  const onSubmit = (data: FormData) => {
-    navigate("/verify-code");
+  const onSubmit = async (data: FormData) => {
+    setLoading(true);
+    setError("");
+
+    try {
+      await authApi.recoverPassword({ email: data.email });
+      sessionStorage.setItem("recovery_email", data.email);
+      navigate("/verify-code");
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message || "No se pudo enviar el código de recuperación.");
+      } else {
+        setError("Error inesperado al enviar el código.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,6 +79,12 @@ const RecoverPassword = () => {
           noValidate
           className="space-y-6"
         >
+          {error && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
           <div>
             <label className="mb-2 block text-sm font-medium text-foreground">
               Correo electrónico
@@ -85,10 +110,10 @@ const RecoverPassword = () => {
 
           <button
             type="submit"
-            disabled={!isDirty || !isValid}
+            disabled={!isDirty || !isValid || loading}
             className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Enviar código
+            {loading ? "Enviando..." : "Enviar código"}
           </button>
         </form>
 

@@ -3,6 +3,7 @@ import { Eye, EyeOff, Check, X, CheckCircle2 } from "lucide-react";
 
 import { Link } from "react-router-dom";
 import AuthLayout from "@/layouts/AuthLayout";
+import { ApiClientError, authApi } from "@/lib/apiClient";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -11,6 +12,8 @@ const ResetPassword = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [touched, setTouched] = useState({ password: false, confirm: false });
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const rules = useMemo(
     () => [
@@ -27,9 +30,40 @@ const ResetPassword = () => {
     password === confirmPassword && confirmPassword.length > 0;
   const canSubmit = allRulesValid && passwordsMatch;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (canSubmit) setSuccess(true);
+    if (!canSubmit) return;
+
+    const email = sessionStorage.getItem("recovery_email") || "";
+    const code = sessionStorage.getItem("recovery_code") || "";
+
+    if (!email || !code) {
+      setError("Tu sesión de recuperación expiró. Solicita un nuevo código.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await authApi.resetPassword({
+        email,
+        code,
+        new_password: password,
+      });
+
+      sessionStorage.removeItem("recovery_email");
+      sessionStorage.removeItem("recovery_code");
+      setSuccess(true);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message || "No se pudo restablecer la contraseña.");
+      } else {
+        setError("Error inesperado al restablecer la contraseña.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (success) {
@@ -78,6 +112,12 @@ const ResetPassword = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {error && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
           {/* New Password */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-foreground">
@@ -181,10 +221,10 @@ const ResetPassword = () => {
 
           <button
             type="submit"
-            disabled={!canSubmit}
+            disabled={!canSubmit || loading}
             className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Restablecer contraseña
+            {loading ? "Restableciendo..." : "Restablecer contraseña"}
           </button>
         </form>
 

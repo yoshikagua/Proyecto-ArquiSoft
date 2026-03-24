@@ -1,8 +1,6 @@
 # NOTE: Este compose es para desarrollo local y testing de api-gateway
 # Levanta: user-api (con postgres y mailhog) + api-gateway
 # Uso: docker compose up -d (desde este directorio)
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine

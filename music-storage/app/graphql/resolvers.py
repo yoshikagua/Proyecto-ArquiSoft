@@ -4,36 +4,179 @@ from strawberry.file_uploads import Upload
 from strawberry.types import Info
 from jose import jwt, JWTError
 from fastapi import HTTPException
-from app.schemas.score_schema import ScoreType
+from app.schemas.score_schema import ScoreType, CommentType
 from app.db.mongo import get_scores_collection
 from app.models.score_model import build_score_document
 from app.core.storage import minio_client
 from app.core.config import settings
 from io import BytesIO
-from datetime import timedelta
+from datetime import datetime
 from bson import ObjectId
+
+
+DEFAULT_GENRES = [
+    "Clásico",
+    "Barroco",
+    "Romántico",
+    "Impresionista",
+    "Contemporáneo",
+    "Jazz",
+    "Tradicional",
+]
+
+DEFAULT_INSTRUMENTS = [
+    "Piano",
+    "Violín",
+    "Viola",
+    "Guitarra",
+    "Flauta",
+    "Trompeta",
+    "Trombón",
+    "Tuba",
+    "Violonchelo",
+    "Saxofón",
+    "Clarinete",
+    "Oboe",
+    "Arpa",
+    "Contrabajo",
+    "Percusión",
+    "Órgano",
+]
+
+DEFAULT_FORMATS = [
+    "Banda sinfónica",
+    "Orquesta tropical",
+    "Orquesta de cámara",
+    "Coro",
+    "Ensamble",
+    "Solista",
+]
+
+
+def _parse_user_id_from_request(info: Info, required: bool = False) -> str | None:
+    request = info.context["request"]
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header:
+        if required:
+            raise HTTPException(status_code=401, detail="Authorization header missing")
+        return None
+
+    try:
+        scheme, token = auth_header.split(maxsplit=1)
+        if scheme.lower() != "bearer":
+            raise HTTPException(status_code=401, detail="Invalid auth scheme")
+
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_sub": False},
+        )
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return str(user_id)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Malformed authorization header")
+    except HTTPException:
+        raise
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+def _serialize_score(doc: dict, requester_user_id: str | None) -> ScoreType:
+    liked_by = [str(user_id) for user_id in doc.get("liked_by", [])]
+    favorited_by = [str(user_id) for user_id in doc.get("favorited_by", [])]
+
+    comments = [
+        CommentType(
+            id=str(comment.get("id", "")),
+            usuario=comment.get("usuario", "Usuario"),
+            avatar=comment.get("avatar", "U"),
+            texto=comment.get("texto", ""),
+            fecha=comment.get("fecha", datetime.utcnow().isoformat()),
+        )
+        for comment in doc.get("comments", [])
+    ]
+
+    return ScoreType(
+        id=str(doc["_id"]),
+        title=doc.get("title", "Sin título"),
+        composer=doc.get("composer", "Desconocido"),
+        genre=doc.get("genre", ""),
+        format=doc.get("format", ""),
+        year=doc.get("year", 0),
+        uploaded_by=str(doc.get("user_id", "")),
+        file_url=f"http://localhost:9000/{settings.BUCKET_NAME}/{doc['object_key']}",
+        description=doc.get("description", ""),
+        instruments=doc.get("instruments", []),
+        likes=int(doc.get("likes_count", 0)),
+        downloads=int(doc.get("downloads", 0)),
+        favorito=requester_user_id in favorited_by if requester_user_id else False,
+        liked=requester_user_id in liked_by if requester_user_id else False,
+        comentarios=comments,
+    )
+
+
+async def _get_score_catalog_values() -> tuple[list[str], list[str], list[str]]:
+    collection = get_scores_collection()
+
+    genres = await collection.distinct("genre")
+    instruments_nested = await collection.distinct("instruments")
+    formats = await collection.distinct("format")
+
+    normalized_genres = sorted(
+        {
+            str(value).strip()
+            for value in [*DEFAULT_GENRES, *(genres or [])]
+            if isinstance(value, str) and str(value).strip()
+        }
+    )
+
+    normalized_instruments = sorted(
+        {
+            str(value).strip()
+            for value in [*DEFAULT_INSTRUMENTS, *(instruments_nested or [])]
+            if isinstance(value, str) and str(value).strip()
+        }
+    )
+
+    normalized_formats = sorted(
+        {
+            str(value).strip()
+            for value in [*DEFAULT_FORMATS, *(formats or [])]
+            if isinstance(value, str) and str(value).strip()
+        }
+    )
+
+    return normalized_genres, normalized_instruments, normalized_formats
 
 @strawberry.type
 class Query:
 
     @strawberry.field
-    async def scores(self) -> list[ScoreType]:
+    async def scores(self, info: Info) -> list[ScoreType]:
+        requester_user_id = _parse_user_id_from_request(info, required=False)
         collection = get_scores_collection()
         docs = await collection.find().to_list(100)
 
-        return [
-            ScoreType(
-                id=str(doc["_id"]),
-                title=doc.get("title", "Sin título"),
-                composer=doc.get("composer", "Desconocido"),
-                genre=doc.get("genre", ""),        
-                format=doc.get("format", ""),      
-                year=doc.get("year", 0),           
-                uploaded_by=doc.get("user_id", ""),
-                file_url=f"http://localhost:9000/{settings.BUCKET_NAME}/{doc['object_key']}",
-            )
-            for doc in docs
-        ]
+        return [_serialize_score(doc, requester_user_id) for doc in docs]
+
+    @strawberry.field
+    async def score_genres(self) -> list[str]:
+        genres, _, _ = await _get_score_catalog_values()
+        return genres
+
+    @strawberry.field
+    async def score_instruments(self) -> list[str]:
+        _, instruments, _ = await _get_score_catalog_values()
+        return instruments
+
+    @strawberry.field
+    async def score_formats(self) -> list[str]:
+        _, _, formats = await _get_score_catalog_values()
+        return formats
 
 
 @strawberry.type
@@ -42,42 +185,17 @@ class Mutation:
     @strawberry.mutation
     async def upload_score(
         self,
-        info: Info,  # 👈 IMPORTANTE
+        info: Info,
         title: str,
         composer: str,
         genre: str,
         format_type: str,
         year: int,
-        file: Upload
+        file: Upload,
+        description: str = "",
+        instruments: list[str] | None = None,
     ) -> ScoreType:
-
-        # 🔐 1️⃣ Leer header Authorization
-        request = info.context["request"]
-        auth_header = request.headers.get("Authorization")
-
-        if not auth_header:
-            raise HTTPException(status_code=401, detail="Authorization header missing")
-
-        try:
-            scheme, token = auth_header.split()
-
-            if scheme.lower() != "bearer":
-                raise HTTPException(status_code=401, detail="Invalid auth scheme")
-
-            # 🔐 2️⃣ Validar JWT
-            payload = jwt.decode(
-                token,
-                settings.JWT_SECRET,
-                algorithms=[settings.JWT_ALGORITHM]
-            )
-
-            user_id = payload.get("sub")
-
-            if not user_id:
-                raise HTTPException(status_code=401, detail="Invalid token payload")
-
-        except JWTError:
-            raise HTTPException(status_code=401, detail="Invalid token")
+        user_id = _parse_user_id_from_request(info, required=True)
 
         
         collection = get_scores_collection()
@@ -105,52 +223,19 @@ class Mutation:
             file.filename,
             file.content_type,
             object_key,
-            user_id=user_id
+            user_id=user_id,
+            description=description,
+            instruments=instruments or [],
         )
 
         result = await collection.insert_one(doc)
+        created_doc = await collection.find_one({"_id": result.inserted_id})
 
-        return ScoreType(
-            id=str(result.inserted_id),
-            title=title,
-            composer=composer,
-            genre=genre,
-            format=format_type,
-            year=year,
-            uploaded_by=user_id,
-            file_url=f"http://localhost:9000/{settings.BUCKET_NAME}/{object_key}",
-        )
+        return _serialize_score(created_doc, user_id)
     
     @strawberry.mutation
     async def delete_score(self, info: Info, id: str) -> bool:
-
-        # 🔐 1️⃣ Leer header Authorization
-        request = info.context["request"]
-        auth_header = request.headers.get("Authorization")
-
-        if not auth_header:
-            raise HTTPException(status_code=401, detail="Authorization header missing")
-
-        try:
-            scheme, token = auth_header.split()
-
-            if scheme.lower() != "bearer":
-                raise HTTPException(status_code=401, detail="Invalid auth scheme")
-
-            # 🔐 2️⃣ Validar JWT
-            payload = jwt.decode(
-                token,
-                settings.JWT_SECRET,
-                algorithms=[settings.JWT_ALGORITHM]
-            )
-
-            user_id = payload.get("sub")
-
-            if not user_id:
-                raise HTTPException(status_code=401, detail="Invalid token payload")
-
-        except JWTError:
-            raise HTTPException(status_code=401, detail="Invalid token")
+        user_id = _parse_user_id_from_request(info, required=True)
 
         # 📦 3️⃣ Buscar documento en Mongo
         collection = get_scores_collection()
@@ -187,33 +272,7 @@ class Mutation:
         year: int
     ) -> ScoreType:
 
-        # 🔐 Leer header Authorization
-        request = info.context["request"]
-        auth_header = request.headers.get("Authorization")
-
-        if not auth_header:
-            raise HTTPException(status_code=401, detail="Authorization header missing")
-
-        try:
-            scheme, token = auth_header.split()
-
-            if scheme.lower() != "bearer":
-                raise HTTPException(status_code=401, detail="Invalid auth scheme")
-
-            # 🔐 Validar JWT
-            payload = jwt.decode(
-                token,
-                settings.JWT_SECRET,
-                algorithms=[settings.JWT_ALGORITHM]
-            )
-
-            user_id = payload.get("sub")
-
-            if not user_id:
-                raise HTTPException(status_code=401, detail="Invalid token payload")
-
-        except JWTError:
-            raise HTTPException(status_code=401, detail="Invalid token")
+        user_id = _parse_user_id_from_request(info, required=True)
 
         collection = get_scores_collection()
 
@@ -229,13 +288,110 @@ class Mutation:
         # Obtener el documento actualizado
         updated_doc = await collection.find_one({"_id": ObjectId(id)})
 
-        return ScoreType(
-            id=str(updated_doc["_id"]),
-            title=updated_doc["title"],
-            composer=updated_doc["composer"],
-            genre=updated_doc["genre"],
-            format=updated_doc["format"],
-            year=updated_doc["year"],
-            uploaded_by=updated_doc["user_id"],
-            file_url=f"http://localhost:9000/{settings.BUCKET_NAME}/{updated_doc['object_key']}",
+        return _serialize_score(updated_doc, user_id)
+
+    @strawberry.mutation
+    async def toggle_like(self, info: Info, id: str) -> ScoreType:
+        user_id = _parse_user_id_from_request(info, required=True)
+        collection = get_scores_collection()
+
+        doc = await collection.find_one({"_id": ObjectId(id)})
+        if not doc:
+            raise HTTPException(status_code=404, detail="Score not found")
+
+        liked_by = [str(uid) for uid in doc.get("liked_by", [])]
+        if user_id in liked_by:
+            update = {
+                "$pull": {"liked_by": user_id},
+                "$inc": {"likes_count": -1},
+            }
+        else:
+            update = {
+                "$addToSet": {"liked_by": user_id},
+                "$inc": {"likes_count": 1},
+            }
+
+        await collection.update_one({"_id": ObjectId(id)}, update)
+        updated_doc = await collection.find_one({"_id": ObjectId(id)})
+
+        if int(updated_doc.get("likes_count", 0)) < 0:
+            await collection.update_one(
+                {"_id": ObjectId(id)},
+                {"$set": {"likes_count": 0}},
+            )
+            updated_doc = await collection.find_one({"_id": ObjectId(id)})
+
+        return _serialize_score(updated_doc, user_id)
+
+    @strawberry.mutation
+    async def toggle_favorite(self, info: Info, id: str) -> ScoreType:
+        user_id = _parse_user_id_from_request(info, required=True)
+        collection = get_scores_collection()
+
+        doc = await collection.find_one({"_id": ObjectId(id)})
+        if not doc:
+            raise HTTPException(status_code=404, detail="Score not found")
+
+        favorited_by = [str(uid) for uid in doc.get("favorited_by", [])]
+        if user_id in favorited_by:
+            await collection.update_one(
+                {"_id": ObjectId(id)},
+                {"$pull": {"favorited_by": user_id}},
+            )
+        else:
+            await collection.update_one(
+                {"_id": ObjectId(id)},
+                {"$addToSet": {"favorited_by": user_id}},
+            )
+
+        updated_doc = await collection.find_one({"_id": ObjectId(id)})
+        return _serialize_score(updated_doc, user_id)
+
+    @strawberry.mutation
+    async def add_comment(
+        self,
+        info: Info,
+        id: str,
+        texto: str,
+        usuario: str,
+        avatar: str,
+    ) -> ScoreType:
+        user_id = _parse_user_id_from_request(info, required=True)
+        collection = get_scores_collection()
+
+        doc = await collection.find_one({"_id": ObjectId(id)})
+        if not doc:
+            raise HTTPException(status_code=404, detail="Score not found")
+
+        comment = {
+            "id": str(uuid.uuid4()),
+            "usuario": usuario,
+            "avatar": avatar,
+            "texto": texto,
+            "fecha": datetime.utcnow().isoformat(),
+        }
+
+        await collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$push": {"comments": comment}},
         )
+
+        updated_doc = await collection.find_one({"_id": ObjectId(id)})
+        return _serialize_score(updated_doc, user_id)
+
+    @strawberry.mutation
+    async def register_download(self, info: Info, id: str) -> ScoreType:
+        requester = _parse_user_id_from_request(info, required=False)
+        collection = get_scores_collection()
+
+        doc = await collection.find_one({"_id": ObjectId(id)})
+        if not doc:
+            raise HTTPException(status_code=404, detail="Score not found")
+
+        await collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$inc": {"downloads": 1}},
+        )
+
+        updated_doc = await collection.find_one({"_id": ObjectId(id)})
+        return _serialize_score(updated_doc, requester)

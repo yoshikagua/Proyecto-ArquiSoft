@@ -4,14 +4,13 @@ import { z } from "zod";
 import { Link } from "react-router-dom";
 import AuthLayout from "@/layouts/AuthLayout";
 import { useNavigate } from "react-router-dom";
+import { ApiClientError, authApi } from "@/lib/apiClient";
 
 const codeSchema = z
   .string()
   .trim()
   .min(1, "El código es obligatorio.")
   .length(8, "El código debe tener exactamente 8 caracteres.");
-
-const MOCK_VALID_CODE = "ABC12345";
 
 type Status = "idle" | "success" | "error";
 
@@ -21,6 +20,8 @@ const VerifyCodePage = () => {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [resending, setResending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const recoveryEmail = sessionStorage.getItem("recovery_email") || "";
 
   const validation = codeSchema.safeParse(code);
   const isValid = validation.success;
@@ -35,25 +36,64 @@ const VerifyCodePage = () => {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (!isValid) {
       setStatus("error");
       setErrorMsg(validation.error!.errors[0].message);
       return;
     }
 
-    if (code.toUpperCase() === MOCK_VALID_CODE) {
+    if (!recoveryEmail) {
+      setStatus("error");
+      setErrorMsg("Primero debes solicitar un código de recuperación.");
+      return;
+    }
+
+    setVerifying(true);
+
+    try {
+      await authApi.verifyRecoveryCode({
+        email: recoveryEmail,
+        code,
+      });
+      sessionStorage.setItem("recovery_code", code);
       setStatus("success");
       setErrorMsg("");
-    } else {
+    } catch (err) {
       setStatus("error");
-      setErrorMsg("El código no es correcto.");
+      if (err instanceof ApiClientError) {
+        setErrorMsg(err.message || "El código no es correcto.");
+      } else {
+        setErrorMsg("No se pudo verificar el código.");
+      }
+    } finally {
+      setVerifying(false);
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
+    if (!recoveryEmail) {
+      setStatus("error");
+      setErrorMsg("Primero debes ingresar tu correo para recuperar contraseña.");
+      return;
+    }
+
     setResending(true);
-    setTimeout(() => setResending(false), 2000);
+    setStatus("idle");
+    setErrorMsg("");
+
+    try {
+      await authApi.recoverPassword({ email: recoveryEmail });
+    } catch (err) {
+      setStatus("error");
+      if (err instanceof ApiClientError) {
+        setErrorMsg(err.message || "No se pudo reenviar el código.");
+      } else {
+        setErrorMsg("No se pudo reenviar el código.");
+      }
+    } finally {
+      setResending(false);
+    }
   };
 
   const borderClass =
@@ -121,10 +161,10 @@ const VerifyCodePage = () => {
         {/* Botón Verificar */}
         <button
           onClick={handleVerify}
-          disabled={!isValid || status === "success"}
+            disabled={!isValid || status === "success" || verifying}
           className="mb-4 w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Verificar código
+            {verifying ? "Verificando..." : "Verificar código"}
         </button>
 
         {status === "success" && (

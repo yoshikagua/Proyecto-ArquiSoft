@@ -27,13 +27,14 @@ import {
 
 /** Datos mínimos del usuario que se guardan en sesión */
 export interface AuthUser {
+    id?: number;
     nombre: string;
     apellido?: string;
     email: string;
     /** Inicial del avatar mostrado en la Navbar */
     avatar: string;
     /** Rol del usuario */
-    role: "admin" | "user";
+    role: "admin" | "user" | "superadmin";
     bio?: string;
 }
 
@@ -48,6 +49,7 @@ interface AuthContextValue {
      * @param userData - Datos básicos del usuario para mostrar en la UI
      */
     login: (token: string, userData: AuthUser) => void;
+    updateUser: (userData: Partial<AuthUser>) => void;
     /** Cierra sesión, limpia el almacenamiento local y redirige a /login */
     logout: () => void;
 }
@@ -79,12 +81,26 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
+    const getStoredToken = () => {
+        const token = localStorage.getItem("auth_token") || localStorage.getItem("access_token");
+        if (!token || token === "undefined" || token === "null") {
+            return null;
+        }
+        return token;
+    };
+
     /**
      * Inicializa el usuario desde localStorage para persistir la sesión
      * entre recargas de página.
      */
     const [user, setUser] = useState<AuthUser | null>(() => {
         try {
+            const token = getStoredToken();
+            if (!token) {
+                localStorage.removeItem("auth_user");
+                return null;
+            }
+
             const stored = localStorage.getItem("auth_user");
             return stored ? (JSON.parse(stored) as AuthUser) : null;
         } catch {
@@ -94,12 +110,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     /** Guarda el usuario en localStorage cada vez que cambia */
     useEffect(() => {
-        if (user) {
+        const token = getStoredToken();
+        if (user && token) {
             localStorage.setItem("auth_user", JSON.stringify(user));
         } else {
             localStorage.removeItem("auth_user");
             localStorage.removeItem("access_token");
             localStorage.removeItem("auth_token");
+            if (user && !token) {
+                setUser(null);
+            }
         }
     }, [user]);
 
@@ -111,9 +131,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
      * @param userData - Datos del usuario para la UI
      */
     const login = (token: string, userData: AuthUser) => {
+        if (!token || token === "undefined" || token === "null") {
+            setUser(null);
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("auth_token");
+            return;
+        }
+
         localStorage.setItem("access_token", token);
         localStorage.setItem("auth_token", token);
         setUser(userData);
+    };
+
+    const updateUser = (userData: Partial<AuthUser>) => {
+        setUser((prev) => (prev ? { ...prev, ...userData } : prev));
     };
 
     /**
@@ -126,7 +157,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuth: !!user, login, logout }}>
+        <AuthContext.Provider value={{ user, isAuth: !!user && !!getStoredToken(), login, updateUser, logout }}>
             {children}
         </AuthContext.Provider>
     );

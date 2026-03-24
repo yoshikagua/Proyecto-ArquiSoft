@@ -14,7 +14,7 @@
  * Validación básica con react-hook-form + zod.
  */
 
-import { useState, type ReactNode, type ChangeEvent, type DragEvent } from "react";
+import { useState, useEffect, type ReactNode, type ChangeEvent, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,8 +31,9 @@ import {
     ArrowLeft,
 } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
-import { GENEROS } from "@/mockData";
 import { toast } from "sonner";
+import { storageApi, ApiClientError } from "@/lib/apiClient";
+import { usePartituras } from "@/context/PartiturasContext";
 
 /* ─────────────────────────────────────────────
    Esquema de validación con Zod
@@ -54,6 +55,7 @@ const subirPartituraSchema = z.object({
         .int()
         .min(1400, "El año debe ser posterior a 1400")
         .max(new Date().getFullYear(), "El año no puede ser futuro"),
+    formatoAgrupacion: z.string().min(1, "Selecciona el formato de agrupación"),
     genero: z.string().min(1, "Selecciona un género musical"),
     descripcion: z.string().max(500, "Máximo 500 caracteres").optional(),
 });
@@ -61,33 +63,12 @@ const subirPartituraSchema = z.object({
 type SubirPartituraData = z.infer<typeof subirPartituraSchema>;
 
 /* ─────────────────────────────────────────────
-   Instrumentos disponibles para selección
-───────────────────────────────────────────── */
-const INSTRUMENTOS_DISPONIBLES = [
-    "Piano",
-    "Violín",
-    "Guitarra",
-    "Flauta",
-    "Trompeta",
-    "Violonchelo",
-    "Saxofón",
-    "Clarinete",
-    "Oboe",
-    "Arpa",
-    "Contrabajo",
-    "Percusión",
-    "Órgano",
-    "Viola",
-    "Coro",
-    "Orquesta",
-];
-
-/* ─────────────────────────────────────────────
    Componente principal
 ───────────────────────────────────────────── */
 
 const SubirPartitura = () => {
     const navigate = useNavigate();
+    const { addPartitura } = usePartituras();
 
     // ── Estado para el archivo PDF ──
     /** Referencia al archivo seleccionado por el usuario */
@@ -100,6 +81,9 @@ const SubirPartitura = () => {
     // ── Estado para instrumentos seleccionados ──
     const [instrumentosSeleccionados, setInstrumentosSeleccionados] = useState<string[]>([]);
     const [instrumentoError, setInstrumentoError] = useState("");
+    const [catalogoGeneros, setCatalogoGeneros] = useState<string[]>([]);
+    const [catalogoInstrumentos, setCatalogoInstrumentos] = useState<string[]>([]);
+    const [catalogoFormatos, setCatalogoFormatos] = useState<string[]>([]);
 
     // ── Estado de envío ──
     const [enviando, setEnviando] = useState(false);
@@ -113,6 +97,23 @@ const SubirPartitura = () => {
         resolver: zodResolver(subirPartituraSchema),
         mode: "onChange",
     });
+
+    useEffect(() => {
+        const loadCatalog = async () => {
+            try {
+                const catalog = await storageApi.getCatalog();
+                setCatalogoGeneros(catalog.genres || []);
+                setCatalogoInstrumentos(catalog.instruments || []);
+                setCatalogoFormatos(catalog.formats || []);
+            } catch {
+                toast.error("No se pudo cargar el catálogo", {
+                    description: "Intenta nuevamente en unos segundos.",
+                });
+            }
+        };
+
+        void loadCatalog();
+    }, []);
 
     /* ─── Manejo del archivo PDF ─── */
 
@@ -175,23 +176,57 @@ const SubirPartitura = () => {
         }
 
         setEnviando(true);
-        // Simulación de carga al servidor (2 segundos)
-        await new Promise((r) => setTimeout(r, 2000));
-        setEnviando(false);
 
-        // Notificación de éxito
-        toast.success("¡Partitura subida exitosamente!", {
-            description: `"${data.titulo}" ya está disponible en la biblioteca.`,
-            duration: 5000,
-        });
+        try {
+            const uploadedScore = await storageApi.uploadScore({
+                title: data.titulo,
+                composer: data.autor,
+                genre: data.genero,
+                format_type: data.formatoAgrupacion,
+                year: data.anio,
+                description: data.descripcion || "",
+                instruments: instrumentosSeleccionados,
+                file: archivoSeleccionado,
+            });
 
-        // Resetear formulario
-        reset();
-        setArchivoSeleccionado(null);
-        setInstrumentosSeleccionados([]);
+            addPartitura({
+                id: uploadedScore.id,
+                uploadedBy: uploadedScore.uploaded_by,
+                titulo: data.titulo,
+                autor: data.autor,
+                anio: data.anio,
+                genero: data.genero,
+                instrumentos: instrumentosSeleccionados,
+                likes: 0,
+                liked: false,
+                descargas: 0,
+                favorito: false,
+                descripcion: data.descripcion || "",
+                comentarios: [],
+            });
 
-        // Redirigir a la lista de partituras
-        navigate("/partituras");
+            toast.success("¡Partitura subida exitosamente!", {
+                description: `"${data.titulo}" ya está disponible en la biblioteca.`,
+                duration: 5000,
+            });
+
+            reset();
+            setArchivoSeleccionado(null);
+            setInstrumentosSeleccionados([]);
+            navigate("/partituras");
+        } catch (err) {
+            if (err instanceof ApiClientError) {
+                toast.error("No se pudo subir la partitura", {
+                    description: err.message,
+                });
+            } else {
+                toast.error("No se pudo subir la partitura", {
+                    description: "Ocurrió un error inesperado.",
+                });
+            }
+        } finally {
+            setEnviando(false);
+        }
     };
 
     /* ─── Formateo de tamaño de archivo ─── */
@@ -295,7 +330,7 @@ const SubirPartitura = () => {
                                     style={{ paddingLeft: "2.5rem" }}
                                 >
                                     <option value="">Seleccionar género…</option>
-                                    {GENEROS.filter((g) => g !== "Todos").map((g) => (
+                                    {catalogoGeneros.map((g) => (
                                         <option key={g} value={g}>
                                             {g}
                                         </option>
@@ -304,6 +339,25 @@ const SubirPartitura = () => {
                             </div>
                         </FormField>
                     </div>
+
+                    {/* Formato de agrupación */}
+                    <FormField label="Formato de agrupación" error={errors.formatoAgrupacion?.message} required>
+                        <div className="relative">
+                            <Music className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
+                            <select
+                                {...register("formatoAgrupacion")}
+                                className={selectClass(!!errors.formatoAgrupacion)}
+                                style={{ paddingLeft: "2.5rem" }}
+                            >
+                                <option value="">Seleccionar formato…</option>
+                                {catalogoFormatos.map((formato) => (
+                                    <option key={formato} value={formato}>
+                                        {formato}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </FormField>
 
                     {/* Descripción */}
                     <FormField
@@ -329,7 +383,7 @@ const SubirPartitura = () => {
                         </label>
                         {/* Cuadrícula de chips de instrumentos */}
                         <div className="flex flex-wrap gap-2">
-                            {INSTRUMENTOS_DISPONIBLES.map((inst) => {
+                            {catalogoInstrumentos.map((inst) => {
                                 const seleccionado = instrumentosSeleccionados.includes(inst);
                                 return (
                                     <button

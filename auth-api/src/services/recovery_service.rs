@@ -65,10 +65,10 @@ impl RecoveryService {
                 .map_err(|_| AppError::DatabaseError)?;
 
             // Enviar email
-            let body = format!("Tu código de recuperación es: {}", code);
+            let body = format!("Tu codigo de recuperacion es: {}", code);
             self.email_service.send_email(crate::dto::email_request::EmailRequest {
                 to: email.to_string(),
-                subject: "Código de recuperación".to_string(),
+                subject: "Codigo de recuperacion".to_string(),
                 body,
             }).await.map_err(|_| AppError::EmailError)?;
             Ok(true)

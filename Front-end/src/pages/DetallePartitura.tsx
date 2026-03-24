@@ -43,7 +43,7 @@ import {
 const DetallePartitura = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { partituras, toggleFavorito, toggleLike, addComentario } = usePartituras();
+    const { partituras, toggleFavorito, toggleLike, addComentario, incrementDescargas } = usePartituras();
 
     // Busca la partitura en el estado compartido por su ID
     const partituraBase = partituras.find((p) => p.id === id);
@@ -100,7 +100,7 @@ const DetallePartitura = () => {
             setShowLoginAlert(true);
             return;
         }
-        toggleLike(partituraBase.id);
+        void toggleLike(partituraBase.id);
     };
 
     const handleFavorito = () => {
@@ -108,7 +108,7 @@ const DetallePartitura = () => {
             setShowLoginAlert(true);
             return;
         }
-        toggleFavorito(partituraBase.id);
+        void toggleFavorito(partituraBase.id);
     };
 
     const favorito = partituraBase.favorito;
@@ -118,6 +118,7 @@ const DetallePartitura = () => {
 
     /** Simula la descarga del archivo PDF de la partitura */
     const handleDescargar = () => {
+        void incrementDescargas(partituraBase.id);
         // En producción: llamada a la API para obtener el PDF
         alert(`Descargando "${partituraBase.titulo}"…`);
     };
@@ -142,7 +143,7 @@ const DetallePartitura = () => {
             fecha: new Date().toISOString(),
         };
 
-        addComentario(partituraBase.id, nuevo);
+        await addComentario(partituraBase.id, nuevo);
         setNuevoComentario("");
         setEnviandoComentario(false);
     };

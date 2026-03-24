@@ -6,19 +6,20 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Partitura } from "@/types";
-import { PARTITURAS_MOCK } from "@/mockData";
+import { storageApi, type StorageScore } from "@/lib/apiClient";
+import { useAuth } from "@/context/AuthContext";
 
 interface PartiturasContextValue {
   partituras: Partitura[];
-  toggleFavorito: (id: string) => void;
-  toggleLike: (id: string) => void;
-  addComentario: (id: string, comentario: Partitura["comentarios"][number]) => void;
+  toggleFavorito: (id: string) => Promise<void>;
+  toggleLike: (id: string) => Promise<void>;
+  addComentario: (id: string, comentario: Partitura["comentarios"][number]) => Promise<void>;
+  addPartitura: (partitura: Partitura) => void;
+  incrementDescargas: (id: string) => Promise<void>;
   eliminarPartitura: (id: string) => void;
   /** Partituras marcadas como favoritas */
   favoritas: Partitura[];
 }
-
-const PARTITURAS_STORAGE_KEY = "partituras_state";
 
 const PartiturasContext = createContext<PartiturasContextValue | null>(null);
 
@@ -29,31 +30,59 @@ export const usePartituras = (): PartiturasContextValue => {
 };
 
 export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
-  const [partituras, setPartituras] = useState<Partitura[]>(() => {
-    try {
-      const stored = localStorage.getItem(PARTITURAS_STORAGE_KEY);
-      if (!stored) {
-        return PARTITURAS_MOCK.map((partitura) => ({ ...partitura, liked: false }));
-      }
+  const { user, isAuth } = useAuth();
 
-      const parsed = JSON.parse(stored) as Partitura[];
-      return parsed.map((partitura) => ({ ...partitura, liked: partitura.liked ?? false }));
-    } catch {
-      return PARTITURAS_MOCK.map((partitura) => ({ ...partitura, liked: false }));
-    }
+  const mapStorageScoreToPartitura = (score: StorageScore): Partitura => ({
+    id: score.id,
+    uploadedBy: score.uploaded_by,
+    titulo: score.title,
+    autor: score.composer,
+    anio: score.year,
+    genero: score.genre,
+    instrumentos: score.instruments || [],
+    likes: score.likes || 0,
+    liked: score.liked ?? false,
+    descargas: score.downloads || 0,
+    favorito: score.favorito ?? false,
+    descripcion: score.description || "",
+    comentarios: (score.comentarios || []).map((comment) => ({
+      id: comment.id,
+      usuario: comment.usuario,
+      avatar: comment.avatar,
+      texto: comment.texto,
+      fecha: comment.fecha,
+    })),
   });
+  const [partituras, setPartituras] = useState<Partitura[]>([]);
+
+  const refreshFromBackend = async () => {
+    try {
+      const scores = await storageApi.getScores();
+      const mapped = scores.map(mapStorageScoreToPartitura);
+      setPartituras(mapped);
+    } catch {
+      setPartituras([]);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem(PARTITURAS_STORAGE_KEY, JSON.stringify(partituras));
-  }, [partituras]);
+    void refreshFromBackend();
+  }, [isAuth, user?.id]);
 
-  const toggleFavorito = (id: string) => {
+  const toggleFavorito = async (id: string) => {
     setPartituras((prev) =>
       prev.map((p) => (p.id === id ? { ...p, favorito: !p.favorito } : p))
     );
+
+    try {
+      await storageApi.toggleFavorite(id);
+      await refreshFromBackend();
+    } catch {
+      await refreshFromBackend();
+    }
   };
 
-  const toggleLike = (id: string) => {
+  const toggleLike = async (id: string) => {
     setPartituras((prev) =>
       prev.map((p) => {
         if (p.id !== id) return p;
@@ -66,9 +95,16 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
         };
       })
     );
+
+    try {
+      await storageApi.toggleLike(id);
+      await refreshFromBackend();
+    } catch {
+      await refreshFromBackend();
+    }
   };
 
-  const addComentario = (id: string, comentario: Partitura["comentarios"][number]) => {
+  const addComentario = async (id: string, comentario: Partitura["comentarios"][number]) => {
     setPartituras((prev) =>
       prev.map((p) =>
         p.id === id
@@ -79,6 +115,46 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
           : p
       )
     );
+
+    try {
+      await storageApi.addComment(id, {
+        texto: comentario.texto,
+        usuario: comentario.usuario,
+        avatar: comentario.avatar,
+      });
+      await refreshFromBackend();
+    } catch {
+      await refreshFromBackend();
+    }
+  };
+
+  const addPartitura = (partitura: Partitura) => {
+    setPartituras((prev) => {
+      if (prev.some((existing) => existing.id === partitura.id)) {
+        return prev;
+      }
+      return [partitura, ...prev];
+    });
+  };
+
+  const incrementDescargas = async (id: string) => {
+    setPartituras((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              descargas: p.descargas + 1,
+            }
+          : p
+      )
+    );
+
+    try {
+      await storageApi.registerDownload(id);
+      await refreshFromBackend();
+    } catch {
+      await refreshFromBackend();
+    }
   };
 
   const eliminarPartitura = (id: string) => {
@@ -89,7 +165,16 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <PartiturasContext.Provider
-      value={{ partituras, toggleFavorito, toggleLike, addComentario, eliminarPartitura, favoritas }}
+      value={{
+        partituras,
+        toggleFavorito,
+        toggleLike,
+        addComentario,
+        addPartitura,
+        incrementDescargas,
+        eliminarPartitura,
+        favoritas,
+      }}
     >
       {children}
     </PartiturasContext.Provider>

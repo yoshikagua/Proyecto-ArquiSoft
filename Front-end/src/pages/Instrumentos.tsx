@@ -13,11 +13,33 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Music, X } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
-import { CATEGORIAS_INSTRUMENTO, INSTRUMENTOS_MOCK } from "@/mockData";
 import { Instrumento } from "@/types";
+import { usePartituras } from "@/context/PartiturasContext";
+
+const CATEGORIAS_INSTRUMENTO = ["Todas", "Cuerda", "Viento", "Percusión", "Teclado", "Otros"];
+
+const INSTRUMENT_METADATA: Record<string, { categoria: string; imagen: string; descripcion: string }> = {
+    "Piano": { categoria: "Teclado", imagen: "🎹", descripcion: "Instrumento armónico de teclado." },
+    "Violín": { categoria: "Cuerda", imagen: "🎻", descripcion: "Instrumento de cuerda frotada." },
+    "Viola": { categoria: "Cuerda", imagen: "🎻", descripcion: "Instrumento de cuerda de registro medio." },
+    "Violonchelo": { categoria: "Cuerda", imagen: "🎻", descripcion: "Instrumento de cuerda de registro grave." },
+    "Contrabajo": { categoria: "Cuerda", imagen: "🎻", descripcion: "Instrumento de cuerda de registro muy grave." },
+    "Guitarra": { categoria: "Cuerda", imagen: "🎸", descripcion: "Instrumento de cuerda pulsada." },
+    "Flauta": { categoria: "Viento", imagen: "🪈", descripcion: "Instrumento de viento madera." },
+    "Clarinete": { categoria: "Viento", imagen: "🎶", descripcion: "Instrumento de viento madera de lengüeta." },
+    "Oboe": { categoria: "Viento", imagen: "🎶", descripcion: "Instrumento de viento madera de doble lengüeta." },
+    "Saxofón": { categoria: "Viento", imagen: "🎷", descripcion: "Instrumento de viento de lengüeta simple." },
+    "Trompeta": { categoria: "Viento", imagen: "🎺", descripcion: "Instrumento de viento metal." },
+    "Trombón": { categoria: "Viento", imagen: "🎺", descripcion: "Instrumento de viento metal de vara." },
+    "Tuba": { categoria: "Viento", imagen: "🎺", descripcion: "Instrumento de viento metal grave." },
+    "Percusión": { categoria: "Percusión", imagen: "🥁", descripcion: "Familia de instrumentos percutidos." },
+    "Órgano": { categoria: "Teclado", imagen: "🎹", descripcion: "Instrumento de teclado y tubos." },
+    "Arpa": { categoria: "Cuerda", imagen: "🪕", descripcion: "Instrumento de cuerda pulsada vertical." },
+};
 
 const Instrumentos = () => {
     const navigate = useNavigate();
+    const { partituras } = usePartituras();
 
     // ── Estado de filtros ──
     /** Texto de búsqueda */
@@ -29,8 +51,35 @@ const Instrumentos = () => {
      * Lista filtrada de instrumentos según la búsqueda y categoria seleccionada.
      * Recalculado sólo cuando los filtros cambian.
      */
+    const instrumentosData = useMemo<Instrumento[]>(() => {
+        const counts = new Map<string, number>();
+
+        partituras.forEach((partitura) => {
+            partitura.instrumentos.forEach((inst) => {
+                counts.set(inst, (counts.get(inst) || 0) + 1);
+            });
+        });
+
+        return Array.from(counts.entries()).map(([nombre, partiturasCount], index) => {
+            const metadata = INSTRUMENT_METADATA[nombre] || {
+                categoria: "Otros",
+                imagen: "🎵",
+                descripcion: "Instrumento registrado en partituras de la biblioteca.",
+            };
+
+            return {
+                id: `${index + 1}`,
+                nombre,
+                categoria: metadata.categoria,
+                descripcion: metadata.descripcion,
+                partiturasCount,
+                imagen: metadata.imagen,
+            };
+        });
+    }, [partituras]);
+
     const instrumentosFiltrados = useMemo<Instrumento[]>(() => {
-        return INSTRUMENTOS_MOCK.filter((inst) => {
+        return instrumentosData.filter((inst) => {
             // Coincidencia por nombre (caso insensible)
             const coincideBusqueda = inst.nombre
                 .toLowerCase()
@@ -42,7 +91,7 @@ const Instrumentos = () => {
 
             return coincideBusqueda && coincideCategoria;
         });
-    }, [busqueda, categoriaActiva]);
+    }, [instrumentosData, busqueda, categoriaActiva]);
 
     /** Navega a partituras filtrando por el instrumento seleccionado */
     const verPartituras = (nombre: string) => {

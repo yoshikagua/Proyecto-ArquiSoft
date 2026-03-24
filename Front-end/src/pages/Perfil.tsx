@@ -1,7 +1,7 @@
 /**
  * Perfil.tsx
  * Página de perfil de usuario con tabs: Info Personal, Mis Partituras,
- * Mis Favoritos, y Panel Admin (solo si role === "admin").
+ * Mis Favoritos, y Panel Admin (solo si role es admin o superadmin).
  */
 
 import { useState, useEffect } from "react";
@@ -19,13 +19,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { User, Music, Heart, Shield, Save, Pencil, Trash2, Search, LogOut, FileText, MessageSquare } from "lucide-react";
-import { USUARIOS_MOCK } from "@/mockData";
 import { Usuario } from "@/types";
 import { toast } from "sonner";
+import { authApi, ApiClientError } from "@/lib/apiClient";
+
+const normalizeRole = (roleName?: string): "user" | "admin" | "superadmin" => {
+  const normalized = (roleName || "").toLowerCase();
+  if (normalized.includes("super")) return "superadmin";
+  if (normalized.includes("admin")) return "admin";
+  return "user";
+};
 
 const Perfil = () => {
-  const { user, logout, login } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { partituras, favoritas, eliminarPartitura } = usePartituras();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const isSuperAdmin = user?.role === "superadmin";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get("tab") ?? "info";
@@ -45,31 +54,107 @@ const Perfil = () => {
   const [bio, setBio] = useState(user?.bio ?? "");
 
   // ── Admin ──
-  const [usuarios, setUsuarios] = useState<Usuario[]>(USUARIOS_MOCK);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [filtro, setFiltro] = useState("");
   const [editUser, setEditUser] = useState<Usuario | null>(null);
   const [editNombre, setEditNombre] = useState("");
   const [editApellido, setEditApellido] = useState("");
-  const [editRol, setEditRol] = useState<"admin" | "user">("user");
+  const [editRol, setEditRol] = useState<"admin" | "user" | "superadmin">("user");
 
-  // Mock data: "mis partituras" = primeras 3
-  const misPartituras = partituras.slice(0, 3);
+  const currentUserId = user?.id != null ? String(user.id) : null;
+  const misPartituras = currentUserId
+    ? partituras.filter((partitura) => String(partitura.uploadedBy ?? "") === currentUserId)
+    : [];
 
   // Stats
   const totalPartiturasSubidas = misPartituras.length;
-  const totalComentarios = partituras.reduce((acc, p) => acc + p.comentarios.length, 0);
+  const totalComentarios = misPartituras.reduce((acc, p) => acc + p.comentarios.length, 0);
 
-  const handleGuardar = () => {
-    if (user) {
-      login(localStorage.getItem("access_token") ?? "", {
-        ...user,
-        nombre,
-        apellido,
-        bio,
+  const handleGuardar = async () => {
+    if (!user) return;
+
+    try {
+      let userId = user.id;
+      if (!userId) {
+        const me = await authApi.getCurrentUser();
+        userId = me.id;
+      }
+
+      if (!userId) {
+        throw new ApiClientError("No se pudo identificar el usuario actual", 400, {
+          message: "Usuario inválido",
+        });
+      }
+
+      await authApi.updateUser(userId, {
+        first_name: nombre,
+        last_name: apellido,
+        profile_info: bio,
       });
+
+      updateUser({ id: userId, nombre, apellido, bio });
       toast.success("Cambios guardados correctamente");
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        toast.error("No se pudo guardar el perfil", {
+          description: error.message,
+        });
+      } else {
+        toast.error("No se pudo guardar el perfil");
+      }
     }
   };
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+
+      try {
+        const me = await authApi.getCurrentUser();
+        const fullName = `${me.first_name || ""} ${me.last_name || ""}`.trim();
+        setNombre(me.first_name || user.nombre || "");
+        setApellido(me.last_name || user.apellido || "");
+        setBio(me.profile_info || "");
+
+        updateUser({
+          id: me.id,
+          nombre: fullName || user.nombre,
+          apellido: me.last_name || user.apellido,
+          email: me.email || user.email,
+          bio: me.profile_info || "",
+          role: normalizeRole(me.role_name),
+        });
+      } catch {
+        // Mantener valores locales si falla el fetch de perfil
+      }
+    };
+
+    void loadProfile();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      if (!isAdmin) return;
+
+      try {
+        const backendUsers = await authApi.getUsers(100, 0);
+        setUsuarios(
+          backendUsers.map((backendUser) => ({
+            id: String(backendUser.id),
+            nombre: backendUser.first_name,
+            apellido: backendUser.last_name,
+            email: backendUser.email,
+            rol: normalizeRole(backendUser.role_name),
+            bio: backendUser.profile_info || "",
+          }))
+        );
+      } catch {
+        toast.error("No se pudo cargar la lista de usuarios");
+      }
+    };
+
+    void loadUsers();
+  }, [isAdmin]);
 
   const handleLogout = () => {
     logout();
@@ -83,22 +168,37 @@ const Perfil = () => {
     setEditRol(u.rol);
   };
 
-  const handleEditSave = () => {
+  const handleEditSave = async () => {
     if (!editUser) return;
-    setUsuarios((prev) =>
-      prev.map((u) =>
-        u.id === editUser.id
-          ? { ...u, nombre: editNombre, apellido: editApellido, rol: editRol }
-          : u
-      )
-    );
-    setEditUser(null);
-    toast.success("Usuario actualizado");
+
+    if (!isSuperAdmin && editRol !== "user") {
+      toast.error("Solo superadmin puede asignar roles administrativos");
+      return;
+    }
+
+    try {
+      await authApi.updateUser(Number(editUser.id), {
+        first_name: editNombre,
+        last_name: editApellido,
+        role_id: editRol === "superadmin" ? 3 : editRol === "admin" ? 2 : 1,
+      });
+
+      setUsuarios((prev) =>
+        prev.map((u) =>
+          u.id === editUser.id
+            ? { ...u, nombre: editNombre, apellido: editApellido, rol: editRol }
+            : u
+        )
+      );
+      setEditUser(null);
+      toast.success("Usuario actualizado");
+    } catch {
+      toast.error("No se pudo actualizar el usuario");
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setUsuarios((prev) => prev.filter((u) => u.id !== id));
-    toast.success("Usuario eliminado");
+  const handleDelete = (_id: string) => {
+    toast.error("Eliminar usuarios no está disponible en backend actualmente");
   };
 
   const handleEliminarPartitura = (id: string) => {
@@ -116,8 +216,6 @@ const Perfil = () => {
     navigate("/login", { replace: true });
     return null;
   }
-
-  const isAdmin = user.role === "admin";
 
   return (
     <div className="min-h-screen bg-background">
@@ -349,7 +447,7 @@ const Perfil = () => {
                             <TableCell>{u.nombre}</TableCell>
                             <TableCell>{u.apellido}</TableCell>
                             <TableCell>
-                              <Badge variant={u.rol === "admin" ? "default" : "secondary"}>
+                              <Badge variant={u.rol === "user" ? "secondary" : "default"}>
                                 {u.rol}
                               </Badge>
                             </TableCell>
@@ -415,11 +513,12 @@ const Perfil = () => {
                       <label className="text-sm font-medium">Rol</label>
                       <select
                         value={editRol}
-                        onChange={(e) => setEditRol(e.target.value as "admin" | "user")}
+                        onChange={(e) => setEditRol(e.target.value as "admin" | "user" | "superadmin")}
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <option value="user">User</option>
-                        <option value="admin">Admin</option>
+                        {isSuperAdmin && <option value="admin">Admin</option>}
+                        {isSuperAdmin && <option value="superadmin">SuperAdmin</option>}
                       </select>
                     </div>
                   </div>

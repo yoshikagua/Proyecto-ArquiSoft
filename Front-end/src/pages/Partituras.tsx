@@ -9,13 +9,13 @@
  * - Navegación al detalle de cada partitura
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, BookOpen, ThumbsUp, Download, Star, X } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
-import { GENEROS } from "@/mockData";
 import { usePartituras } from "@/context/PartiturasContext";
 import { Partitura } from "@/types";
+import { storageApi } from "@/lib/apiClient";
 
 const Partituras = () => {
     const navigate = useNavigate();
@@ -30,6 +30,24 @@ const Partituras = () => {
     const [instrumentoFiltro, setInstrumentoFiltro] = useState("");
     /** Controla si el panel de filtros avanzados está visible */
     const [mostrarFiltros, setMostrarFiltros] = useState(false);
+    const [generosDisponibles, setGenerosDisponibles] = useState<string[]>(["Todos"]);
+
+    useEffect(() => {
+        const loadCatalog = async () => {
+            try {
+                const catalog = await storageApi.getCatalog();
+                const genres = catalog.genres.length > 0 ? catalog.genres : [];
+                setGenerosDisponibles(["Todos", ...genres]);
+            } catch {
+                const genresFromScores = Array.from(
+                    new Set(PARTITURAS_DATA.map((partitura) => partitura.genero).filter(Boolean))
+                );
+                setGenerosDisponibles(["Todos", ...genresFromScores]);
+            }
+        };
+
+        void loadCatalog();
+    }, [PARTITURAS_DATA]);
 
     /**
      * Lista filtrada de partituras según búsqueda, género e instrumento.
@@ -111,7 +129,7 @@ const Partituras = () => {
                 {/* ── Chips de género + botón filtros avanzados ── */}
                 <div className="mb-6 flex flex-wrap items-center gap-2">
                     {/* Filtros rápidos por género */}
-                    {GENEROS.map((genero) => (
+                    {generosDisponibles.map((genero) => (
                         <button
                             key={genero}
                             onClick={() => setGeneroActivo(genero)}
