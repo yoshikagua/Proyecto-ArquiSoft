@@ -51,7 +51,7 @@ async def storage_health() -> dict[str, str]:
 
 @router.api_route("", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
-async def proxy_music_storage(path: str, request: Request) -> Response:
+async def proxy_music_storage(request: Request, path: str = "") -> Response:
     upstream_url = settings.music_storage_url
     if path:
         upstream_url = f"{upstream_url}/{path}"

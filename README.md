@@ -2,39 +2,129 @@
 
 Proyecto de Arquitectura de Software – **Grupo 2, UNAL 2026-I**
 
-Aplicación web para gestionar y compartir una biblioteca digital de partituras musicales. Incluye autenticación de usuarios, exploración de partituras e instrumentos, subida de PDFs y sistema de comentarios.
-
-## 📁 Repositorio
-
-| Carpeta    | Descripción                                          |
-|------------|------------------------------------------------------|
-| `Front-end/` | Aplicación React + Vite. Ver [README](./Front-end/README.md). |
-| `api-gateway/` | API Gateway en FastAPI para enrutar y transformar requests. |
-| `auth-api/` | Servicio de autenticación en Rust/Axum. |
-| `tests/` | Suite de pruebas organizada en `e2e`, `integration` y `validation`. |
-
-El proyecto se mantiene en este mismo repositorio (frontend + servicios + documentación).
-
-## 🔌 Documentación técnica
-
-- 📄 [QUICK_START.md](./QUICK_START.md) – Puesta en marcha rápida
-- 📄 [DOCKER_COMPOSE_GUIDE.md](./DOCKER_COMPOSE_GUIDE.md) – Uso de stacks Docker Compose
-- 📄 [FRONTEND_GATEWAY_INTEGRATION.md](./FRONTEND_GATEWAY_INTEGRATION.md) – Flujo Frontend ↔ Gateway ↔ User API
-- 📄 [tests/README.md](./tests/README.md) – Estructura y ejecución de tests
+Plataforma web para gestionar y compartir una biblioteca digital de partituras musicales.
 
 ---
 
 ## 👥 Integrantes del grupo
 
-| Nombre                           | Correo                      |
-|----------------------------------|-----------------------------|
-| Stiven Aguirre Granada           | staguirreg@unal.edu.co      |
-| Juan Jose Alvarez Lozano         | jualvarezlo@unal.edu.co     |
-| David Andrés Camelo Suárez       | dcamelos@unal.edu.co        |
-| Juan Manuel Torres León          | jutorresle@unal.edu.co      |
-| Sergio Alejandro Reita Serrano   | sreita@unal.edu.co          |
-| Maria Paula Román Arévalo        | maromana@unal.edu.co        |
-| David Fernando Benjumea Mora     | dbenjumeam@unal.edu.co      |
-| Julian David Rodriguez Fernandez | jrodriguezfe@unal.edu.co    |
-| John Jairo Paez Albino           | jopaeza@unal.edu.co         |
+| Nombre                           | Correo                  |
+|----------------------------------|-------------------------|
+| Stiven Aguirre Granada           | staguirreg@unal.edu.co  |
+| Juan Jose Alvarez Lozano         | jualvarezlo@unal.edu.co |
+| David Andrés Camelo Suárez       | dcamelos@unal.edu.co    |
+| Juan Manuel Torres León          | jutorresle@unal.edu.co  |
+| Sergio Alejandro Reita Serrano   | sreita@unal.edu.co      |
+| Maria Paula Román Arévalo        | maromana@unal.edu.co    |
+| David Fernando Benjumea Mora     | dbenjumeam@unal.edu.co  |
+| Julian David Rodriguez Fernandez | jrodriguezfe@unal.edu.co |
+| John Jairo Paez Albino           | jopaeza@unal.edu.co     |
 
+---
+
+## 🧱 Arquitectura general
+
+La solución está organizada en microservicios:
+
+- `Front-end/`: React + Vite (UI)
+- `api-gateway/`: FastAPI (punto de entrada único)
+- `auth-api/`: Rust + Axum (autenticación y usuarios)
+- `music-storage/`: FastAPI + Strawberry GraphQL (partituras)
+- Infraestructura: PostgreSQL, MongoDB, MinIO y MailHog
+
+Flujo principal:
+
+`Frontend -> API Gateway -> Auth API / Music Storage`
+
+---
+
+## 📁 Estructura del repositorio
+
+| Carpeta | Descripción |
+|---------|-------------|
+| `Front-end/` | Aplicación frontend y cliente API |
+| `api-gateway/` | Enrutamiento, proxy y health checks |
+| `auth-api/` | Registro, login, sesiones y usuarios |
+| `music-storage/` | Upload y consulta de partituras |
+| `tests/` | Pruebas `validation`, `integration` y `e2e` |
+
+---
+
+## 🚀 Puesta en marcha rápida
+
+Requisitos:
+
+- Docker / Docker Compose
+
+Desde la raíz:
+
+```bash
+docker compose up -d --build
+```
+
+Detener:
+
+```bash
+docker compose down
+```
+
+Detener y limpiar volúmenes:
+
+```bash
+docker compose down -v
+```
+
+---
+
+## 🌐 Endpoints principales
+
+- Frontend: `http://localhost:8080`
+- API Gateway: `http://localhost:8000`
+- Auth API (directo): `http://localhost:3000`
+- Music Storage GraphQL (directo): `http://localhost:8001/storage`
+- Music Storage vía Gateway: `http://localhost:8000/api/storage`
+- MinIO Console: `http://localhost:9001`
+- MailHog: `http://localhost:8025`
+
+Health checks:
+
+- `GET /health` en gateway: `http://localhost:8000/health`
+- `GET /api/auth/health` en gateway: `http://localhost:8000/api/auth/health`
+- `GET /api/storage/health` en gateway: `http://localhost:8000/api/storage/health`
+- `GET /health` en auth-api: `http://localhost:3000/health`
+
+---
+
+## 🧪 Pruebas
+
+Ejecutar suite completa:
+
+```bash
+python -m pytest tests/ -q
+```
+
+Por categoría:
+
+```bash
+python -m pytest tests/validation/ -q
+python -m pytest tests/integration/ -q
+python -m pytest tests/e2e/ -q
+```
+
+---
+
+## 🔌 Documentación técnica
+
+- [QUICK_START.md](./QUICK_START.md)
+- [DOCKER_COMPOSE_GUIDE.md](./DOCKER_COMPOSE_GUIDE.md)
+- [FRONTEND_GATEWAY_INTEGRATION.md](./FRONTEND_GATEWAY_INTEGRATION.md)
+- [tests/README.md](./tests/README.md)
+
+---
+
+## 📌 Estado actual
+
+- Stack Docker completo funcional
+- Integración frontend-gateway-auth operativa
+- Integración gateway-storage operativa
+- Suite de pruebas de validación, integración y E2E pasando

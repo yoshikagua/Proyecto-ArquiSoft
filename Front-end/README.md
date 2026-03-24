@@ -88,7 +88,7 @@ npm install
 npm run dev
 ```
 
-La aplicación quedará disponible en `http://localhost:xxxx`.
+La aplicación quedará disponible en el puerto que asigne Vite (por defecto `http://localhost:8080` en Docker del proyecto).
 
 ### Otros comandos útiles
 
@@ -136,7 +136,13 @@ Al integrar el backend real, solo hay que reemplazar el bloque `TODO` en `Login.
 
 ## 🔌 Integración con backend
 
-Los datos actualmente se proveen desde `src/mockData.ts`. Cuando el backend esté disponible, consulta la guía de integración:
+Estado actual:
+
+- Login y registro: conectados al backend real vía gateway (`/api/auth/login`, `/api/auth/signup`).
+- Health check de auth: disponible vía gateway (`/api/auth/health`).
+- Otras vistas (partituras/instrumentos): pueden convivir con secciones mock según módulo.
+
+Guía detallada:
 
 📄 **[BACKEND_INTEGRATION.md](./BACKEND_INTEGRATION.md)**
 

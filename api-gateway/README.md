@@ -1,116 +1,99 @@
 # API Gateway
 
-API Gateway centralizado para los microservicios del proyecto. Construido con FastAPI.
+Gateway centralizado del proyecto KuisiScore (FastAPI).
 
-## Descripción
+---
 
-Este servicio actúa como punto de entrada único para:
-- **User API**: Servicio de autenticación y gestión de usuarios (Rust)
-- **Frontend**: Interfaz React/TypeScript
+## Rol del servicio
 
-## Requisitos
+Expone un punto único de entrada para:
 
-- Python 3.10+ (Anaconda o instalación estándar)
-- pip
+- Autenticación (`/api/auth/*`) hacia `user-api`
+- Storage (`/api/storage/*`) hacia `music-storage`
 
-## Instalación
+---
 
-1. **Instalar dependencias**
+## Configuración
+
+Variables principales:
+
+- `GATEWAY_PORT` (default `8000`)
+- `USER_API_URL` (default `http://localhost:3000`)
+- `MUSIC_STORAGE_URL` (default `http://localhost:8001/storage` en local)
+- `FRONTEND_URL` (default `http://localhost:8080`)
+- `DEBUG` (`True` / `False`)
+
+Instalación local:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-2. **Configurar variables de entorno**
-   - Ajustar `.env` según tu entorno
-   - Por defecto conecta a:
-     - User API: `http://localhost:3000`
-     - Frontend: `http://localhost:8080`
+Ejecución local:
 
-## Desarrollo
-
-### Ejecutar servidor
 ```bash
-python -m uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-O si prefieres Python directamente:
-```bash
-python -m app.main
-```
+---
 
-### URL de documentación interactiva
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+## Endpoints disponibles
 
-## Pruebas E2E
+### Generales
 
-Para validar el comportamiento del gateway de punta a punta, ejecuta primero `User_api` en `http://localhost:3000` y luego este gateway.
+- `GET /` → estado básico del gateway
+- `GET /health` → health del gateway
 
-1. Levantar API Gateway (puerto 8000):
-```bash
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
+### Auth
 
-2. Probar endpoints:
+- `POST /api/auth/login` → proxy a `POST /auth/login`
+- `POST /api/auth/signup` → proxy a `POST /auth/register`
+- `GET /api/auth/health` → estado y URLs configuradas
+
+### Storage
+
+- `GET /api/storage/health` → health del storage vía proxy
+- `GET /api/storage` → GraphiQL de music-storage
+- `GET|POST|PUT|PATCH|DELETE /api/storage/{path}` → proxy transparente
+
+---
+
+## Pruebas rápidas
+
 ```bash
 curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/api/auth/health
-curl -X POST http://127.0.0.1:8000/api/auth/login -H "Content-Type: application/json" -d '{"email":"test@test.com","password":"123456"}'
-curl -X POST http://127.0.0.1:8000/api/auth/signup -H "Content-Type: application/json" -d '{"email":"new@test.com","password":"123456","name":"Test"}'
+curl http://127.0.0.1:8000/api/storage/health
+curl http://127.0.0.1:8000/api/storage
 ```
 
-Comportamiento esperado:
-- `GET /health` responde `200` con `{"status":"healthy"}`
-- `GET /api/auth/health` responde `200` con URLs configuradas
-- `POST /api/auth/login` y `POST /api/auth/signup` responden según el estado de `User_api` y retornan su respuesta (passthrough)
+Login con credenciales inválidas (esperado `401`):
 
-## Estructura
-
-```
-api-gateway/
-├── app/
-│   ├── __init__.py
-│   ├── main.py              # Aplicación principal
-│   ├── config/
-│   │   ├── __init__.py
-│   │   └── settings.py      # Configuración
-│   └── routers/
-│       ├── __init__.py
-│       └── auth.py          # Rutas de autenticación
-├── requirements.txt
-├── .env
-├── .gitignore
-├── Dockerfile
-└── README.md
+```bash
+curl -X POST http://127.0.0.1:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"nope@example.com","password":"wrong"}'
 ```
 
-## Endpoints
-
-### Autenticación
-- `POST /api/auth/login` - Login
-- `POST /api/auth/signup` - Registro
-- `GET /api/auth/health` - Estado del servicio
-
-### General
-- `GET /` - Verificar que el gateway funciona
-- `GET /health` - Health check
+---
 
 ## Docker
 
-Construir imagen:
+Desde raíz del proyecto:
+
 ```bash
-docker build -t api-gateway .
+docker compose up -d --build api-gateway
 ```
 
-Ejecutar contenedor:
+Ver logs:
+
 ```bash
-docker run -p 8000:8000 --env-file .env api-gateway
+docker compose logs -f api-gateway
 ```
 
-## Próximos pasos
+---
 
-- [ ] Integrar endpoints adicionales de User API
-- [ ] Agregar autenticación JWT
-- [ ] Implementar rate limiting
-- [ ] Agregar logging centralizado
-- [ ] Crear docker-compose con todos los servicios
+## Notas
+
+- `logout` y `me` aún no están expuestos por el gateway en el estado actual.
+- CORS está abierto para desarrollo y debe restringirse para producción.

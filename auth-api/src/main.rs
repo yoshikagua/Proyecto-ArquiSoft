@@ -63,6 +63,11 @@ use services::{
 use std::sync::Arc;
 
 
+async fn health_check() -> &'static str {
+    "healthy"
+}
+
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -112,6 +117,7 @@ async fn main() -> anyhow::Result<()> {
 
     // ---- ROUTER ----
     let app = Router::new()
+        .route("/health", get(health_check))
         .route("/auth/register", post(handlers::auth_handler::register))
         .route("/auth/login", post(handlers::auth_handler::login))
         .route("/auth/logout", post(handlers::auth_handler::logout))

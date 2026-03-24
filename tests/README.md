@@ -291,11 +291,11 @@ if __name__ == "__main__":
 ### ❌ Error: "Connection refused"
 **Problema:** Servicios no están corriendo
 ```bash
-# Solución: Iniciar servicios con docker-compose
-docker-compose up -d --build
+# Solución: Iniciar servicios con Docker Compose
+docker compose up -d --build
 
 # Verificar que estén corriendo
-docker-compose ps
+docker compose ps
 ```
 
 ### ❌ Error: "ModuleNotFoundError"
@@ -309,8 +309,8 @@ python -m pytest tests/
 ### ❌ Error: "YAML parsing error"
 **Problema:** Archivo docker-compose.yml con sintaxis inválida
 ```bash
-# Solución: Validar con docker-compose
-docker-compose config
+# Solución: Validar con Docker Compose
+docker compose config
 
 # O con yamllint
 yamllint docker-compose.yml

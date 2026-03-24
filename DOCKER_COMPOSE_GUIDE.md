@@ -1,218 +1,136 @@
-# Docker Compose Reference - Proyecto ArquiSoft
+# Docker Compose Guide – Proyecto ArquiSoft
 
-Este documento explica cómo usar los diferentes docker-compose.yml disponibles en el proyecto.
-
-## 📍 Ubicaciones y propósitos
-
-### 1. `/docker-compose.yml` - **Stack Completo (PRODUCCIÓN/DEMOSTRACIÓN)**
-
-**Ubicación**: Raíz del proyecto  
-**Propósito**: Orquestar TODOS los servicios juntos  
-**Servicios**:
-- PostgreSQL (base de datos)
-- MailHog (testing de emails)
-- User API (autenticación - Rust/Axum)
-- Music Storage (FastAPI + GraphQL + MongoDB + MinIO)
-- API Gateway (enrutador - FastAPI)
-- Frontend (interfaz - React/Vite)
-
-**Cuándo usarlo**:
-- ✅ Demostración completa del proyecto
-- ✅ Testing end-to-end
-- ✅ Ambiente de producción
-- ✅ Necesitas todo funcionando junto
-
-**Comando**:
-```bash
-cd Proyecto-ArquiSoft
-docker compose up -d --build
-docker compose ps  # Ver estado
-docker compose logs -f  # Ver logs
-docker compose down  # Detener
-```
-
-**Acceso**:
-- Frontend: http://localhost:8080
-- API Gateway: http://localhost:8000
-- User API: http://localhost:3000
-- Music Storage (directo): http://localhost:8001/storage
-- MinIO Console: http://localhost:9001
-- MongoDB: localhost:27017
-- MailHog: http://localhost:8025
+Referencia de los `docker-compose.yml` del repositorio y cuándo usar cada uno.
 
 ---
 
-### 2. `/auth-api/docker-compose.yml` - **Stack Mínimo (Auth-API AISLADA)**
+## 1) Stack completo (`/docker-compose.yml`)
 
-**Ubicación**: `auth-api/`  
-**Propósito**: Desarrollo aislado del backend de autenticación  
-**Servicios**:
-- PostgreSQL
-- MailHog
-- User API (Rust/Axum)
+**Uso recomendado** para demo, validación global y pruebas E2E.
 
-**Cuándo usarlo**:
-- ✅ Backend developer trabaja SOLO en autenticación
-- ✅ Testing unitario/integración del auth-api
-- ✅ Desarrollo rápido sin frontend
-- ✅ Recursos limitados (menos contenedores = menos RAM)
+Servicios:
 
-**Comando**:
+- `frontend` (`:8080`)
+- `api-gateway` (`:8000`)
+- `user-api` (`:3000`)
+- `music-storage` (`:8001` -> `:8000` interno)
+- `postgres` (`:5432`)
+- `mongo` (`:27017`)
+- `minio` (`:9000`, `:9001`)
+- `mailhog` (`:1025`, `:8025`)
+
+Comandos:
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
+docker compose down
+```
+
+---
+
+## 2) Stack auth aislado (`/auth-api/docker-compose.yml`)
+
+Útil para desarrollo del microservicio de autenticación.
+
+Comandos:
+
 ```bash
 cd auth-api
 docker compose up -d --build
 docker compose ps
-docker compose logs -f
 docker compose down
 ```
 
-**Acceso**:
-- User API: http://localhost:3000
-- MailHog: http://localhost:8025
-- PostgreSQL: localhost:5432
-
 ---
 
-### 3. `/api-gateway/docker-compose.yml` - **Stack de Gateway (Testing de Gateway)**
+## 3) Stack gateway aislado (`/api-gateway/docker-compose.yml`)
 
-**Ubicación**: `api-gateway/`  
-**Propósito**: Desarrollo aislado del API Gateway  
-**Servicios**:
-- PostgreSQL
-- MailHog
-- User API (dependencia)
-- Music Storage (dependencia)
-- API Gateway (FastAPI)
+Útil para desarrollo de proxy/enrutamiento del gateway.
 
-**Cuándo usarlo**:
-- ✅ Backend developer trabaja en Gateway
-- ✅ Testing del enrutador sin frontend
-- ✅ Mock de datos desde User API
-- ✅ Validar transformación de payloads
+Comandos:
 
-**Comando**:
 ```bash
 cd api-gateway
 docker compose up -d --build
 docker compose ps
-docker compose logs -f
 docker compose down
 ```
 
-**Acceso**:
-- API Gateway: http://localhost:8000
-- User API: http://localhost:3000
-- Music Storage (directo): http://localhost:8001/storage
-- MinIO Console: http://localhost:9001
-- MailHog: http://localhost:8025
-
 ---
 
-### 4. `/Front-end/docker-compose.yml` - **Stack Completo desde Frontend**
+## 4) Stack frontend (`/Front-end/docker-compose.yml`)
 
-**Ubicación**: `Front-end/`  
-**Propósito**: Desarrollo del frontend con backend completo  
-**Servicios**:
-- PostgreSQL
-- MailHog
-- User API
-- Music Storage
-- API Gateway
-- Frontend (React/Vite)
+Útil para desarrollo de UI con backend disponible.
 
-**Cuándo usarlo**:
-- ✅ Frontend developer necesita backend funcionando
-- ✅ Testing de UI + integración
-- ✅ Desarrollo de React con backend real
-- ✅ Full stack desde perspectiva del frontend
+Comandos:
 
-**Comando**:
 ```bash
 cd Front-end
 docker compose up -d --build
 docker compose ps
-docker compose logs -f
 docker compose down
 ```
 
-**Acceso**:
+---
+
+## Endpoints de referencia (stack completo)
+
 - Frontend: http://localhost:8080
-- API Gateway: http://localhost:8000
-- User API: http://localhost:3000
-- Music Storage (directo): http://localhost:8001/storage
-- MinIO Console: http://localhost:9001
+- Gateway: http://localhost:8000
+- Auth directo: http://localhost:3000
+- Storage directo: http://localhost:8001/storage
+- Storage vía gateway: http://localhost:8000/api/storage
+- MinIO console: http://localhost:9001
 - MailHog: http://localhost:8025
 
----
+Health checks:
 
-## 🎯 Matriz de decisión
-
-| Necesito... | Usar... |
-|-------------|---------|
-| Todo funcionando | `/docker-compose.yml` |
-| Solo desarrollar backend auth | `/auth-api/docker-compose.yml` |
-| Solo desarrollar gateway | `/api-gateway/docker-compose.yml` |
-| Solo desarrollar frontend | `/Front-end/docker-compose.yml` |
-| Testing E2E completo | `/docker-compose.yml` |
-| Demo del proyecto | `/docker-compose.yml` |
+- http://localhost:8000/health
+- http://localhost:8000/api/auth/health
+- http://localhost:8000/api/storage/health
+- http://localhost:3000/health
 
 ---
 
-## ⚠️ Nota Importante
+## Recomendaciones
 
-**Los nombres de contenedores son diferentes en cada compose** para evitar conflictos:
-- Root compose: `proyectosoft-*` (ej: proyectosoft-postgres)
-- Auth-api compose: `*-api` interno (ej: api)
-- Gateway compose: `gateway-*` (ej: gateway-postgres)
-- Frontend compose: `frontend-*` (ej: frontend-postgres)
-
-**No ejecutes múltiples docker-compose simultáneamente** si usan los mismos puertos (5432, 3000, 8000, 8025).
-
----
-
-## 🔍 Verificar qué puertos están en uso
+- No levantes múltiples compose al tiempo si comparten puertos.
+- Usa siempre `docker compose ps` para verificar estado real.
+- Si cambias código y no se refleja, reconstruye:
 
 ```bash
-# Linux/Mac
-lsof -i :5432
-lsof -i :3000
-lsof -i :8000
-lsof -i :8080
+docker compose up -d --build
+```
 
-# Windows (PowerShell)
-netstat -ano | findstr "5432"
-netstat -ano | findstr "3000"
+- Limpieza completa de entorno:
+
+```bash
+docker compose down -v
 ```
 
 ---
 
-## 📚 Mejores prácticas
+## Troubleshooting rápido
 
-1. **Desarrollo en equipo**: Cada developer puede levantar solo lo que necesita
-2. **CI/CD**: Usa el root docker-compose.yml para testing
-3. **Producción**: Usa el root docker-compose.yml con variables de entorno seguros
-4. **Database**: Los volumes `postgres_data` son independientes por cada compose
-5. **Limpieza**: Ejecuta `docker compose down -v` para eliminar volúmenes
+**Puerto ocupado**
 
----
-
-## 🆘 Troubleshooting
-
-**Error: "Port 5432 already in use"**
 ```bash
-docker compose down -v  # Detener y eliminar volúmenes
-# O especificar puerto diferente en .env
+docker compose down
+# Cerrar stacks que estén usando los mismos puertos
 ```
 
-**Logs vacíos o servicio no responde**
+**Contenedor en crash-loop**
+
 ```bash
-docker compose logs --tail=50 nombre-servicio
-docker compose ps  # Verificar estado
-docker compose restart nombre-servicio
+docker compose logs --tail=100 <service>
+docker compose restart <service>
 ```
 
-**Cambios en código no se reflejan**
+**Cambios de imagen/arquitectura**
+
 ```bash
-docker compose down  # Detener
-docker compose up -d --build  # Rebuilde
+docker compose pull <service>
+docker compose up -d --force-recreate <service>
 ```

@@ -1,42 +1,77 @@
-# Endpoints útiles para desarrollo
+# Auth API (Rust + Axum)
 
-- **Documentación Swagger/OpenAPI:**
-  - Cuando la API esté corriendo, accede a: [http://localhost:3000/swagger](http://localhost:3000/swagger)
-
-- **Visualizar correos enviados (Mailhog):**
-  - Cuando Mailhog esté corriendo (por docker-compose), accede a: [http://localhost:8025](http://localhost:8025)
-
-- **API base:**
-  - La API escucha en: [http://localhost:3000](http://localhost:3000)
+Microservicio de autenticación y gestión de usuarios de KuisiScore.
 
 ---
 
-# Auth API
+## Endpoints principales
 
-Este documento describe los endpoints disponibles en el microservicio de autenticación, así como el modelo entidad-relación utilizado.
+### Health
 
-## Documentación de Endpoints
+- `GET /health` → responde `200` con `healthy`
 
-La documentación interactiva de los endpoints está disponible en Swagger:
+### Auth
 
-- Ingresa a `/swagger` cuando la API esté corriendo para ver y probar los endpoints.
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/logout`
+- `GET /auth/me`
+- `POST /auth/recover`
+- `POST /auth/verify-recovery-code`
+- `POST /auth/reset-password`
+- `POST /auth/change-password`
 
-## Modelo Entidad-Relación
+### Usuarios
 
-![Modelo ER](er.png)
+- `GET /auth/users`
+- `PUT /auth/users/:id`
 
-## Roles predefinidos
+### Swagger
 
-Según la migración inicial (`migrations/db.sql`), existen tres roles que se crean automáticamente en la base de datos:
-
-| ID lógico | Nombre      |
-| --------- | ----------- |
-| 1         | user        |
-| 2         | admin       |
-| 3         | super_admin |
-
-El campo `role_id` en la tabla `users` referencia estos roles. Por ejemplo, un usuario normal tendrá `role_id = 1`.
+- `GET /swagger`
 
 ---
 
-> Para más detalles sobre la implementación, consulta los archivos fuente en la carpeta `src/handlers`.
+## Dependencias externas
+
+- PostgreSQL
+- MailHog (en desarrollo para flujo de correos)
+
+---
+
+## Ejecución local
+
+```bash
+cd auth-api
+cargo run
+```
+
+Variables esperadas (ver `.env.example`):
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `MAIL_SMTP_HOST`
+- `MAIL_SMTP_PORT`
+- `MAIL_FROM`
+
+---
+
+## Docker
+
+Desde raíz del proyecto:
+
+```bash
+docker compose up -d --build user-api
+```
+
+Validación:
+
+```bash
+curl http://localhost:3000/health
+```
+
+---
+
+## Desarrollo
+
+Documentación OpenAPI disponible en `http://localhost:3000/swagger` cuando el servicio está corriendo.
