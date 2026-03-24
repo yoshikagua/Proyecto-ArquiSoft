@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Music Storage Test</title>
+</head>
+<body>
+
+  <h2>Subir Partitura</h2>
+
+  <form id="uploadForm">
+    <input type="text" id="title" placeholder="Título" required /><br /><br />
+    <input type="text" id="composer" placeholder="Compositor" required /><br /><br />
+    <input type="text" id="genre" placeholder="Género" required /><br><br>
+    <input type="text" id="format" placeholder="Formato (Banda, Orquesta...)" required /><br><br>
+    <input type="number" id="year" placeholder="Año de la obra" required /><br><br>
+    <input type="file" id="file" required /><br /><br />
+    <button type="submit">Subir</button>
+  </form>
+
+  <hr />
+
+  <h2>Archivos Subidos</h2>
+  <button onclick="loadScores()">Recargar Lista</button>
+  <ul id="scoresList"></ul>
+
+  <pre id="response"></pre>
+
+  <script>
+    const API_URL = "http://localhost:8000/storage";
+    // Token artificial
+    const AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIn0.ijTzn5x5RdPvvML7xMF765rNzwxcknSmDxlFmT7XyQg";
+
+    const form = document.getElementById("uploadForm");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const title = document.getElementById("title").value;
+      const composer = document.getElementById("composer").value;
+      const file = document.getElementById("file").files[0];
+      const genre = document.getElementById("genre").value;
+      const format = document.getElementById("format").value;
+      const year = parseInt(document.getElementById("year").value);
+
+      const formData = new FormData();
+
+      formData.append(
+        "operations",
+        JSON.stringify({
+          query: `
+            mutation ($file: Upload!) {
+              uploadScore(title: "${title}", composer: "${composer}", genre: "${genre}", formatType: "${format}", year: ${year}, file: $file) {
+                id
+                title
+                composer
+                genre
+                format
+                year
+                uploadedBy
+                fileUrl
+              } 
+            }
+          `,
+          variables: { file: null }
+        })
+      );
+
+      formData.append("map", JSON.stringify({ "0": ["variables.file"] }));
+      formData.append("0", file);
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${AUTH_TOKEN}`  // Header añadido aquí
+        },
+        body: formData
+      });
+
+      const result = await response.json();
+      document.getElementById("response").textContent =
+        JSON.stringify(result, null, 2);
+
+      loadScores();
+    });
+
+    async function loadScores() {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+         // "Authorization": `Bearer ${AUTH_TOKEN}`  // Header añadido aquí
+        },
+        body: JSON.stringify({
+          query: `
+            query {
+              scores {
+                id
+                title
+                composer
+                genre
+                format
+                year
+                uploadedBy
+                fileUrl
+              }
+            }
+          `
+        })
+      });
+
+      const result = await response.json();
+      const list = document.getElementById("scoresList");
+      list.innerHTML = "";
+
+      if (!result.data || !result.data.scores) return;
+
+      result.data.scores.forEach(score => {
+        const li = document.createElement("li");
+
+        li.innerHTML = `
+          <strong>${score.title}</strong> - ${score.composer}
+          <br/>
+          Género: ${score.genre} |
+          Formato: ${score.format} |
+          Año: ${score.year} |
+          Subido por: ${score.uploadedBy}
+          <br/>
+          <a href="${score.fileUrl}" target="_blank">Abrir</a>
+          |
+          <a href="${score.fileUrl}" download>Descargar</a>
+          |
+          <button onclick="deleteScore('${score.id}')">Eliminar</button>
+          |
+          <button onclick="editScore('${score.id}', '${score.title}', '${score.composer}', '${score.genre}', '${score.format}', ${score.year})">Editar</button>
+        `;
+
+        list.appendChild(li);
+      });
+    }
+
+
+    async function deleteScore(id) {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${AUTH_TOKEN}`
+        },
+        body: JSON.stringify({
+          query: `
+            mutation {
+              deleteScore(id: "${id}")
+            }
+          `
+        })
+      });
+
+      const result = await response.json();
+      console.log(result);
+
+      loadScores(); // recargar lista
+    }
+
+
+    loadScores();
+
+    async function editScore(id, currentTitle, currentComposer, currentGenre, currentFormat, currentYear) {
+      const newTitle = prompt("Nuevo título:", currentTitle);
+      const newComposer = prompt("Nuevo compositor:", currentComposer);
+      const newGenre = prompt("Nuevo género:", currentGenre);
+      const newFormat = prompt("Nuevo formato:", currentFormat);
+      const newYear = prompt("Nuevo año:", currentYear);
+
+      if (newTitle && newComposer && newGenre && newFormat && newYear) {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${AUTH_TOKEN}`
+          },
+          body: JSON.stringify({
+            query: `
+              mutation {
+                updateScore(id: "${id}", title: "${newTitle}", composer: "${newComposer}", genre: "${newGenre}", format: "${newFormat}", year: ${newYear}) {
+                  id
+                  title
+                  composer
+                  genre
+                  format
+                  year
+                  uploadedBy
+                  fileUrl
+                }
+              }
+            `
+          })
+        });
+
+        const result = await response.json();
+        document.getElementById("response").textContent =
+          JSON.stringify(result, null, 2);
+
+        loadScores();
+      }
+    }
+  </script>
+
+</body>
+</html>

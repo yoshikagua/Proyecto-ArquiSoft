@@ -1,0 +1,2 @@
+JWT_SECRET: str
+JWT_ALGORITHM: str = "HS256"

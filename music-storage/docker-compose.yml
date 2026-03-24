@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: music_api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongo
+      - minio
+    environment:
+      - MONGO_URI=mongodb://mongo:27017
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password
+      - JWT_SECRET=supersecretkey
+      - JWT_ALGORITHM=HS256
+
+  mongo:
+    image: mongo:7
+    container_name: music_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  minio:
+    image: minio/minio
+    container_name: music_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+volumes:
+  mongo_data:
+  minio_data:
