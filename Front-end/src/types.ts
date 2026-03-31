@@ -8,6 +8,7 @@
 export interface Partitura {
     id: string;
     uploadedBy?: string;
+    fileUrl?: string;
     titulo: string;
     autor: string;
     anio: number;

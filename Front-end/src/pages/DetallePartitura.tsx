@@ -12,11 +12,11 @@
 
 import { useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import {
     ArrowLeft,
     Download,
     ThumbsUp,
-    Star,
     MessageSquare,
     User,
     Calendar,
@@ -116,11 +116,103 @@ const DetallePartitura = () => {
     const likes = partituraBase.likes;
     const comentarios = partituraBase.comentarios ?? [];
 
-    /** Simula la descarga del archivo PDF de la partitura */
-    const handleDescargar = () => {
+    /** Descarga el archivo PDF de la partitura de forma local */
+    const handleDescargar = async () => {
+        // Marcar como descargado en el backend inmediatamente
         void incrementDescargas(partituraBase.id);
-        // En producción: llamada a la API para obtener el PDF
-        alert(`Descargando "${partituraBase.titulo}"…`);
+
+        try {
+            // Validar que el archivo tenga URL
+            if (!partituraBase.fileUrl) {
+                toast.error("No hay archivo disponible para descargar");
+                console.warn("fileUrl no está disponible para:", partituraBase.id);
+                return;
+            }
+
+            console.log("Iniciando descarga de:", partituraBase.fileUrl);
+
+            // Mostrar toast de progreso
+            toast.info(`Descargando "${partituraBase.titulo}"…`, { duration: Infinity });
+
+            // Hacer fetch del archivo con timeout y manejo mejorado de errores
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+            const response = await fetch(partituraBase.fileUrl, {
+                signal: controller.signal,
+                headers: {
+                    "Cache-Control": "no-cache",
+                }
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorMsg = `Error HTTP ${response.status} - ${response.statusText}`;
+                console.error("Fetch error:", errorMsg);
+                throw new Error(errorMsg);
+            }
+
+            // Verificar que hay contenido
+            const contentLength = response.headers.get("content-length");
+            if (contentLength === "0") {
+                throw new Error("El archivo está vacío");
+            }
+
+            // Convertir a blob
+            const blob = await response.blob();
+
+            if (blob.size === 0) {
+                throw new Error("El archivo descargado está vacío");
+            }
+
+            // Extraer extensión del URL, ignorando query parameters si existen
+            const urlWithoutQuery = partituraBase.fileUrl.split('?')[0];
+            const extensionMatch = urlWithoutQuery.match(/\.([a-zA-Z0-9]+)$/);
+            const extension = extensionMatch ? extensionMatch[1].toLowerCase() : "pdf";
+
+            // Limpiar título para que sea un nombre de archivo válido
+            const safeTitle = (partituraBase.titulo || "partitura")
+                .replace(/[^a-zA-Z0-9 _-]/g, "_")
+                .trim();
+
+            // Generar nombre de archivo con la misma extensión original
+            const filename = `${safeTitle}.${extension}`;
+
+            // Crear URL temporal y elemento anchor
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            link.style.display = "none";
+            document.body.appendChild(link);
+
+            // Disparar descarga
+            link.click();
+
+            // Limpiar recursos después de un delay
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+
+            // Notificar éxito
+            toast.success(`Archivo "${filename}" descargado correctamente`);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error("Error detallado al descargar:", errorMessage);
+
+            // Mostrar error específico
+            if (errorMessage.includes("AbortError")) {
+                toast.error("Descarga cancelada por timeout");
+            } else if (errorMessage.includes("HTTP")) {
+                toast.error(`Error al acceder al archivo: ${errorMessage}`);
+            } else if (errorMessage.includes("vacío")) {
+                toast.error("El archivo está vacío o corrupto");
+            } else {
+                toast.error("Error al descargar el archivo");
+            }
+        }
     };
 
     /** Envía un nuevo comentario a la lista local */
