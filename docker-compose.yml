@@ -1,0 +1,56 @@
+version: '3.9'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: emails_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  worker:
+    build: .
+    container_name: email_php
+    depends_on:
+      - rabbitmq
+      - postgres
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: emails_db
+      DB_USER: user
+      DB_PASSWORD: password
+    restart: always
+
+  producer:
+    build: .
+    container_name: producer_php
+    command: php -S 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - rabbitmq
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    restart: always
+
+volumes:
+  postgres_data:
