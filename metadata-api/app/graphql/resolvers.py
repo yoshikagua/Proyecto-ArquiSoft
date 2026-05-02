@@ -1,15 +1,12 @@
 import uuid
 import strawberry
-from strawberry.file_uploads import Upload
 from strawberry.types import Info
 from jose import jwt, JWTError
 from fastapi import HTTPException
 from app.schemas.score_schema import ScoreType, CommentType
 from app.db.mongo import get_scores_collection
 from app.models.score_model import build_score_document
-from app.core.storage import minio_client
 from app.core.config import settings
-from io import BytesIO
 from datetime import datetime
 from bson import ObjectId
 
@@ -108,7 +105,7 @@ def _serialize_score(doc: dict, requester_user_id: str | None) -> ScoreType:
         format=doc.get("format", ""),
         year=doc.get("year", 0),
         uploaded_by=str(doc.get("user_id", "")),
-        file_url=f"http://localhost:9000/{settings.BUCKET_NAME}/{doc['object_key']}",
+        file_url=f"{settings.MINIO_PUBLIC_URL}/{settings.BUCKET_NAME}/{doc['object_key']}",
         description=doc.get("description", ""),
         instruments=doc.get("instruments", []),
         likes=int(doc.get("likes_count", 0)),
@@ -191,37 +188,24 @@ class Mutation:
         genre: str,
         format_type: str,
         year: int,
-        file: Upload,
+        object_key: str,      
+        file_name: str,       
+        content_type: str,    
         description: str = "",
         instruments: list[str] | None = None,
     ) -> ScoreType:
         user_id = _parse_user_id_from_request(info, required=True)
-
         
         collection = get_scores_collection()
 
-        file_id = str(uuid.uuid4())
-        object_key = f"{file_id}-{file.filename}"
-
-        file_bytes = await file.read()
-
-        minio_client.put_object(
-            settings.BUCKET_NAME,
-            object_key,
-            BytesIO(file_bytes),
-            length=len(file_bytes),
-            content_type=file.content_type,
-        )
-
-        
         doc = build_score_document(
             title,
             composer,
             genre,
             format_type,
             year,
-            file.filename,
-            file.content_type,
+            file_name,
+            content_type,
             object_key,
             user_id=user_id,
             description=description,
@@ -248,12 +232,6 @@ class Mutation:
         # 🔒 4️⃣ Validar que sea el dueño
         if doc["user_id"] != user_id:
             raise Exception("Not authorized to delete this score")
-
-        # 🗑 5️⃣ Eliminar archivo de MinIO
-        minio_client.remove_object(
-            settings.BUCKET_NAME,
-            doc["object_key"]
-        )
 
         # 🗄 6️⃣ Eliminar documento en Mongo
         await collection.delete_one({"_id": ObjectId(id)})
