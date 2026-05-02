@@ -1,27 +1,31 @@
-FROM php:8.2-cli
+FROM php:8.2-cli-alpine
 
 # Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     unzip \
     git \
     libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+    curl
 
-# Extensiones PHP necesarias
-RUN docker-php-ext-install pdo pdo_pgsql sockets
+# Extensiones PHP necesarias (solo las críticas)
+RUN docker-php-ext-install pdo pdo_pgsql
 
 # Instalar Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN curl -sS https://getcomposer.org/installer | php -- \
+    --install-dir=/usr/local/bin --filename=composer
 
 WORKDIR /app
 
 # Copiar primero composer (mejor cache de Docker)
-COPY composer.json composer.lock* ./
+COPY composer.json ./
 
-RUN composer install --no-interaction --prefer-dist
+RUN composer install --no-interaction --prefer-dist --ignore-platform-req=ext-sockets
 
 # Copiar el resto del proyecto
 COPY . .
+
+# El CMD será sobrescrito por docker-compose si es necesario
+# Por defecto, ejecuta PHP en modo server con router
 
 # Ejecutar email
 CMD ["php", "email.php"]
