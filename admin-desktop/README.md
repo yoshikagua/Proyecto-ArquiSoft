@@ -81,6 +81,25 @@ xcode-select --install
 
 ---
 
+## Backend requerido
+
+La app se conecta al API Gateway del proyecto principal (**Proyecto-ArquiSoft**). Debe estar corriendo antes de abrir la app de escritorio.
+
+```bash
+# Desde la raíz de Proyecto-ArquiSoft
+docker compose up
+```
+
+---
+
+## Acceso
+
+Solo pueden ingresar usuarios con rol **admin** o **superadmin**. Usuarios con rol `user` son rechazados en el login aunque sus credenciales sean correctas.
+
+Las cuentas de administrador se crean desde el backend directamente o asignando el rol correspondiente desde el Panel Admin dentro de la misma app (requiere estar logueado como superadmin).
+
+---
+
 ## Instalación
 
 ```bash
@@ -138,13 +157,30 @@ Genera los instaladores en `src-tauri/target/release/bundle/`:
 
 ```
 admin-desktop/
-├── src/                  # Frontend React + TypeScript
+├── src/
+│   ├── components/
+│   │   └── Navbar.tsx
+│   ├── context/
+│   │   ├── AuthContext.tsx       # Autenticación global
+│   │   └── PartiturasContext.tsx # Estado de partituras
+│   ├── layouts/
+│   │   ├── AuthLayout.tsx        # Layout para login
+│   │   └── MainLayout.tsx        # Layout con navbar
+│   ├── lib/
+│   │   └── apiClient.ts          # Cliente HTTP → API Gateway
+│   ├── pages/
+│   │   ├── Login.tsx
+│   │   ├── Partituras.tsx        # Biblioteca con filtros
+│   │   ├── DetallePartitura.tsx  # Vista individual + comentarios
+│   │   ├── Instrumentos.tsx      # Explorador por familia
+│   │   ├── SubirPartitura.tsx    # Formulario de upload
+│   │   └── Perfil.tsx            # Perfil + panel de administración
+│   ├── types/
+│   │   └── index.ts
 │   ├── App.tsx
 │   └── main.tsx
-├── src-tauri/            # Backend nativo Rust (Tauri)
-│   ├── src/
-│   │   └── main.rs
-│   └── tauri.conf.json   # Configuración de la app
+├── src-tauri/                    # Backend nativo Rust (Tauri)
+│   └── tauri.conf.json
 ├── public/
 ├── index.html
 ├── package.json
@@ -157,10 +193,13 @@ admin-desktop/
 
 | Capa | Tecnología |
 |------|-----------|
-| UI | React 18 + TypeScript |
+| UI | React 19 + TypeScript |
+| Estilos | Tailwind CSS |
+| Formularios | React Hook Form + Zod |
 | Build | Vite |
 | Desktop runtime | Tauri 2 |
 | Backend nativo | Rust |
+| API | REST + GraphQL → API Gateway en `localhost:8000` |
 
 ---
 

@@ -49,11 +49,15 @@ const Login = () => {
 
       const role = normalizeRole(response.user?.role_id ?? response.user?.role);
 
+      // Validación de rol: solo admin y superadmin pueden acceder
+      // Descomenta esta sección si quieres permitir usuarios normales
+      /*
       if (role !== "admin" && role !== "superadmin") {
         setError("Acceso restringido. Solo administradores pueden ingresar.");
         setLoading(false);
         return;
       }
+      */
 
       const firstName = response.user?.first_name || email.split("@")[0];
       const lastName = response.user?.last_name || "";

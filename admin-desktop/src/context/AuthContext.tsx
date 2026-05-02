@@ -3,9 +3,11 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 export interface AuthUser {
   id?: number;
   nombre: string;
+  apellido?: string;
   email: string;
   avatar: string;
   role: "admin" | "user" | "superadmin";
+  bio?: string;
 }
 
 interface AuthContextValue {
@@ -14,6 +16,7 @@ interface AuthContextValue {
   token: string | null;
   login: (token: string, userData: AuthUser) => void;
   logout: () => void;
+  updateUser: (updates: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -61,8 +64,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   };
 
+  const updateUser = (updates: Partial<AuthUser>) => {
+    setUser((prev) => (prev ? { ...prev, ...updates } : prev));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuth: !!user && !!token, token, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuth: !!user && !!token, token, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
