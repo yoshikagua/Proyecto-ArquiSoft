@@ -22,6 +22,7 @@ import Partituras from "./pages/Partituras";
 import DetallePartitura from "./pages/DetallePartitura";
 import Instrumentos from "./pages/Instrumentos";
 import SubirPartitura from "./pages/SubirPartitura";
+import EditarPartitura from "./pages/EditarPartitura";
 import Perfil from "./pages/Perfil";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <SubirPartitura />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/editar-partitura/:id"
+              element={
+                <ProtectedRoute>
+                  <EditarPartitura />
                 </ProtectedRoute>
               }
             />

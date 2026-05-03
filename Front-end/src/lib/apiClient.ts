@@ -117,6 +117,17 @@ export interface UploadScoreRequest {
   file: File;
 }
 
+export interface UpdateScoreRequest {
+  id: string;
+  title: string;
+  composer: string;
+  genre: string;
+  format_type: string;
+  year: number;
+  description?: string;
+  instruments?: string[];
+}
+
 export interface StorageScore {
   id: string;
   title: string;
@@ -499,6 +510,67 @@ uploadScore: async (request: UploadScoreRequest): Promise<StorageScore> => {
     const result = await response.json();
     const score = result.data.uploadScore;
     return { ...score, uploaded_by: score.uploadedBy, file_url: score.fileUrl } as StorageScore;
+  },
+
+  updateScore: async (request: UpdateScoreRequest): Promise<StorageScore> => {
+    const data = await fetchStorageGraphQL<{ updateScore: StorageScore }>(
+      `
+      mutation UpdateScore(
+        $id: String!
+        $title: String!
+        $composer: String!
+        $genre: String!
+        $format: String!
+        $year: Int!
+        $description: String!
+        $instruments: [String!]
+      ) {
+        updateScore(
+          id: $id
+          title: $title
+          composer: $composer
+          genre: $genre
+          format: $format
+          year: $year
+          description: $description
+          instruments: $instruments
+        ) {
+          id
+          title
+          composer
+          genre
+          format
+          year
+          uploadedBy
+          fileUrl
+          description
+          instruments
+          likes
+          downloads
+          favorito
+          liked
+          comentarios { id usuario avatar texto fecha }
+        }
+      }
+      `,
+      {
+        id: request.id,
+        title: request.title,
+        composer: request.composer,
+        genre: request.genre,
+        format: request.format_type,
+        year: request.year,
+        description: request.description || "",
+        instruments: request.instruments || [],
+      },
+      true
+    );
+
+    return {
+      ...data.updateScore,
+      uploaded_by: (data.updateScore as unknown as { uploadedBy?: string }).uploadedBy || data.updateScore.uploaded_by,
+      file_url: (data.updateScore as unknown as { fileUrl?: string }).fileUrl || data.updateScore.file_url,
+    };
   },
 
   toggleLike: async (scoreId: string): Promise<StorageScore> => {

@@ -247,7 +247,9 @@ class Mutation:
         composer: str,
         genre: str,
         format: str,
-        year: int
+        year: int,
+        description: str = "",
+        instruments: list[str] | None = None
     ) -> ScoreType:
 
         user_id = _parse_user_id_from_request(info, required=True)
@@ -260,7 +262,15 @@ class Mutation:
             raise HTTPException(status_code=404, detail="Score not found or not owned by user")
 
         # Actualizar
-        update_data = {"title": title, "composer": composer, "genre": genre, "format": format, "year": year}
+        update_data = {
+            "title": title, 
+            "composer": composer, 
+            "genre": genre, 
+            "format": format, 
+            "year": year,
+            "description": description,
+            "instruments": instruments or []
+        }
         await collection.update_one({"_id": ObjectId(id)}, {"$set": update_data})
 
         # Obtener el documento actualizado
