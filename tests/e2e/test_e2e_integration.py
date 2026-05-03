@@ -71,6 +71,9 @@ class TestE2EIntegration(unittest.TestCase):
         for service, status in services_status.items():
             print(f"{service:20} {status}")
 
+        if services_status.get("Frontend", "").startswith("❌") or services_status.get("API Gateway", "").startswith("❌"):
+            raise unittest.SkipTest("Frontend/API Gateway not available for E2E validation")
+
         print("=" * 70)
 
     def test_01_gateway_health_check(self):
@@ -320,6 +323,23 @@ class TestFrontendIntegration(unittest.TestCase):
 
     GATEWAY_URL = "http://localhost:8000"
     FRONTEND_URL = "http://localhost:8080"
+
+    @classmethod
+    def setUpClass(cls):
+        services = {
+            "Frontend": cls.FRONTEND_URL,
+            "API Gateway": cls.GATEWAY_URL,
+        }
+
+        unavailable = []
+        for name, url in services.items():
+            try:
+                httpx.get(url, timeout=5)
+            except Exception:
+                unavailable.append(name)
+
+        if unavailable:
+            raise unittest.SkipTest(f"Frontend E2E services not available: {unavailable}")
 
     def test_01_frontend_loads(self):
         """Validar que el frontend carga correctamente"""

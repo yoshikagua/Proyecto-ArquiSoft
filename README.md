@@ -29,13 +29,14 @@ La solución está organizada en microservicios:
 - `Front-end/`: React + Vite (UI)
 - `api-gateway/`: FastAPI (punto de entrada único)
 - `auth-api/`: Rust + Axum (autenticación y usuarios)
-- `music-storage/`: FastAPI + Strawberry GraphQL (partituras)
+- `metadata-api/`: FastAPI + Strawberry GraphQL (metadatos de partituras)
+- `files-api/`: FastAPI (archivos binarios de partituras)
 - `Notification/`: PHP con RabbitMQ (notificaciones vía email)
 - Infraestructura: PostgreSQL (auth + notifications), MongoDB, RabbitMQ, MinIO y MailHog
 
 Flujo principal:
 
-`Frontend -> API Gateway -> Auth API / Music Storage`
+`Frontend -> API Gateway -> Auth API / Metadata API / Files API`
 
 ---
 
@@ -46,7 +47,8 @@ Flujo principal:
 | `Front-end/` | Aplicación frontend y cliente API |
 | `api-gateway/` | Enrutamiento, proxy y health checks |
 | `auth-api/` | Registro, login, sesiones y usuarios |
-| `music-storage/` | Upload y consulta de partituras |
+| `metadata-api/` | Metadatos de partituras vía GraphQL |
+| `files-api/` | Almacenamiento de archivos de partituras |
 | `Notification/` | Productor y worker de notificaciones (PHP + RabbitMQ) |
 | `tests/` | Pruebas `validation`, `integration` y `e2e` (incluye 35+ tests de notificaciones) |
 

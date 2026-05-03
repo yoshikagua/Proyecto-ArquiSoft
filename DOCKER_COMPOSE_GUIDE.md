@@ -13,7 +13,8 @@ Servicios:
 - `frontend` (`:8080`)
 - `api-gateway` (`:8000`)
 - `user-api` (`:3000`)
-- `music-storage` (`:8001` -> `:8000` interno)
+- `metadata-api` (`:8000` interno)
+- `files-api` (`:8000` interno)
 - `postgres` (`:5432`) - Auth database
 - `mongo` (`:27017`)
 - `minio` (`:9000`, `:9001`)
@@ -84,7 +85,8 @@ docker compose down
 - Frontend: http://localhost:8080
 - Gateway: http://localhost:8000
 - Auth directo: http://localhost:3000
-- Storage directo: http://localhost:8001/storage
+- Metadata GraphQL directo: http://localhost:8000/storage
+- Files API directo: http://localhost:8000
 - Storage vía gateway: http://localhost:8000/api/storage
 - Notification Producer: http://localhost:8002
 - RabbitMQ Management: http://localhost:15672 (guest/guest)

@@ -38,7 +38,9 @@ class TestEnvironmentVariablesConsistency(unittest.TestCase):
             "api-gateway": cls.project_root / "api-gateway" / ".env.example",
             "auth-api": cls.project_root / "auth-api" / ".env.example",
             "frontend": cls.project_root / "Front-end" / ".env.example",
-            "music-storage": cls.project_root / "music-storage" / ".env.example",
+            "payments_app": cls.project_root / "payments_app" / ".env.example",
+            "metadata-api": cls.project_root / "metadata-api" / ".env.example",
+            "files-api": cls.project_root / "files-api" / ".env.example",
         }
         
         # Cargar contenido de .env.example
@@ -70,7 +72,8 @@ class TestEnvironmentVariablesConsistency(unittest.TestCase):
         
         required_vars = [
             "USER_API_URL",
-            "MUSIC_STORAGE_URL",
+            "METADATA_API_URL",
+            "FILES_API_URL",
             "JWT_SECRET",
         ]
         
@@ -117,17 +120,38 @@ class TestEnvironmentVariablesConsistency(unittest.TestCase):
             )
             print(f"   ✓ {var} documented")
 
-    def test_04b_music_storage_env_variables(self):
-        """Verificar variables de entorno de music-storage"""
-        print("\n🟢 TEST 4B: Music Storage Environment Variables")
+    def test_04c_payments_app_env_variables(self):
+        """Verificar variables de entorno del módulo de pagos"""
+        print("\n🟢 TEST 4C: Payments App Environment Variables")
 
-        env = self.env_content.get("music-storage", "")
+        env = self.env_content.get("payments_app", "")
+
+        required_vars = [
+            "DB_HOST",
+            "DB_NAME",
+            "FRONTEND_URL",
+        ]
+
+        for var in required_vars:
+            self.assertIn(
+                var,
+                env,
+                f"payments_app: Missing {var} in .env.example"
+            )
+            print(f"   ✓ {var} documented")
+
+    def test_04d_metadata_api_env_variables(self):
+        """Verificar variables de entorno de metadata-api"""
+        print("\n🟢 TEST 4D: Metadata API Environment Variables")
+
+        env = self.env_content.get("metadata-api", "")
 
         required_vars = [
             "MONGO_URI",
+            "DB_NAME",
+            "BUCKET_NAME",
             "MINIO_ENDPOINT",
-            "MINIO_ROOT_USER",
-            "MINIO_ROOT_PASSWORD",
+            "MINIO_PUBLIC_URL",
             "JWT_SECRET",
         ]
 
@@ -135,7 +159,28 @@ class TestEnvironmentVariablesConsistency(unittest.TestCase):
             self.assertIn(
                 var,
                 env,
-                f"music-storage: Missing {var} in .env.example"
+                f"metadata-api: Missing {var} in .env.example"
+            )
+            print(f"   ✓ {var} documented")
+
+    def test_04e_files_api_env_variables(self):
+        """Verificar variables de entorno de files-api"""
+        print("\n🟢 TEST 4E: Files API Environment Variables")
+
+        env = self.env_content.get("files-api", "")
+
+        required_vars = [
+            "MINIO_ENDPOINT",
+            "MINIO_ROOT_USER",
+            "MINIO_ROOT_PASSWORD",
+            "BUCKET_NAME",
+        ]
+
+        for var in required_vars:
+            self.assertIn(
+                var,
+                env,
+                f"files-api: Missing {var} in .env.example"
             )
             print(f"   ✓ {var} documented")
 

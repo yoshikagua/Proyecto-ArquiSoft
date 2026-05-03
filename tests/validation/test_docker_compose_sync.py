@@ -90,37 +90,61 @@ class TestDockerComposeSynchronization(unittest.TestCase):
             "port": 5432,
         }
         
+        expected_databases = {
+            "postgres": expected_postgres,
+            "payments-postgres": {
+                "image": "postgres:15-alpine",
+                "database": "payments_db",
+                "user": "postgres",
+                "password": "postgres",
+                "port": 5434,
+            },
+            "notification-postgres": {
+                "image": "postgres:15-alpine",
+                "database": "emails_db",
+                "user": "postgres",
+                "password": "password",
+                "port": 5433,
+            },
+        }
+
         for name, compose in self.compose_loaded.items():
-            if "services" in compose and "postgres" in compose["services"]:
-                postgres = compose["services"]["postgres"]
-                
-                # Verificar imagen
+            if "services" not in compose:
+                continue
+
+            services = compose["services"]
+
+            for service_name, expected_db in expected_databases.items():
+                if service_name not in services:
+                    continue
+
+                postgres = services[service_name]
+
                 self.assertEqual(
-                    postgres.get("image"), 
-                    expected_postgres["image"],
-                    f"{name}: PostgreSQL image mismatch"
+                    postgres.get("image"),
+                    expected_db["image"],
+                    f"{name}/{service_name}: PostgreSQL image mismatch"
                 )
-                
-                # Verificar variables de entorno
+
                 env = postgres.get("environment", {})
                 if isinstance(env, dict):
                     self.assertEqual(
                         env.get("POSTGRES_DB"),
-                        expected_postgres["database"],
-                        f"{name}: Database name mismatch"
+                        expected_db["database"],
+                        f"{name}/{service_name}: Database name mismatch"
                     )
                     self.assertEqual(
                         env.get("POSTGRES_USER"),
-                        expected_postgres["user"],
-                        f"{name}: Database user mismatch"
+                        expected_db["user"],
+                        f"{name}/{service_name}: Database user mismatch"
                     )
                     self.assertEqual(
                         env.get("POSTGRES_PASSWORD"),
-                        expected_postgres["password"],
-                        f"{name}: Database password mismatch"
+                        expected_db["password"],
+                        f"{name}/{service_name}: Database password mismatch"
                     )
-                
-                print(f"   ✓ {name}: PostgreSQL correctly configured")
+
+                print(f"   ✓ {name}/{service_name}: PostgreSQL correctly configured")
 
     def test_04_port_no_conflicts(self):
         """Verificar que no hay conflictos de puertos entre stacks"""
@@ -129,13 +153,16 @@ class TestDockerComposeSynchronization(unittest.TestCase):
         # Puertos por servicio (esperado)
         expected_ports = {
             "postgres": [5432],
+            "payments-postgres": [5434],
             "user-api": [3000],
-            "music-storage": [8001],
+            "payments_app": [3002],
             "api-gateway": [8000],
             "frontend": [8080],
             "mailhog": [1025, 8025],
             "mongo": [27017],
             "minio": [9000, 9001],
+            "notification-postgres": [5433],
+            "notification-producer": [8002],
         }
         
         for name, compose in self.compose_loaded.items():
@@ -172,6 +199,8 @@ class TestDockerComposeSynchronization(unittest.TestCase):
         # Imágenes esperadas con sus versiones
         expected_images = {
             "postgres": "postgres:15-alpine",
+            "payments-postgres": "postgres:15-alpine",
+            "notification-postgres": "postgres:15-alpine",
             "mailhog": "mailhog/mailhog",
         }
         
@@ -229,7 +258,8 @@ class TestDockerComposeSynchronization(unittest.TestCase):
             "api-gateway": self.project_root / "api-gateway" / ".env.example",
             "auth-api": self.project_root / "auth-api" / ".env.example",
             "Front-end": self.project_root / "Front-end" / ".env.example",
-            "music-storage": self.project_root / "music-storage" / ".env.example",
+            "metadata-api": self.project_root / "metadata-api" / ".env.example",
+            "files-api": self.project_root / "files-api" / ".env.example",
         }
         
         for service_name, env_file_path in required_env_files.items():
@@ -276,7 +306,7 @@ class TestDockerComposeSynchronization(unittest.TestCase):
                 services = compose["services"]
                 health_checks = {}
                 
-                for service_name in ["postgres", "user-api", "api-gateway"]:
+                for service_name in ["postgres", "payments-postgres", "notification-postgres", "user-api", "api-gateway"]:
                     if service_name in services:
                         service = services[service_name]
                         if "healthcheck" in service:
@@ -321,14 +351,25 @@ class TestEnvironmentConsistency(unittest.TestCase):
                     f"{service_name}: JWT_SECRET not in .env.example")
                 print(f"   ✓ {service_name}: JWT_SECRET defined")
 
-            if service_name == "music-storage":
-                self.assertIn("MONGO_URI", content, 
+            if service_name == "metadata-api":
+                self.assertIn("MONGO_URI", content,
                     f"{service_name}: MONGO_URI not in .env.example")
                 self.assertIn("MINIO_ENDPOINT", content,
                     f"{service_name}: MINIO_ENDPOINT not in .env.example")
+                self.assertIn("MINIO_PUBLIC_URL", content,
+                    f"{service_name}: MINIO_PUBLIC_URL not in .env.example")
                 self.assertIn("JWT_SECRET", content,
                     f"{service_name}: JWT_SECRET not in .env.example")
-                print(f"   ✓ {service_name}: MONGO_URI, MINIO_ENDPOINT, JWT_SECRET defined")
+                print(f"   ✓ {service_name}: MONGO_URI, MINIO_ENDPOINT, MINIO_PUBLIC_URL, JWT_SECRET defined")
+
+            if service_name == "files-api":
+                self.assertIn("MINIO_ENDPOINT", content,
+                    f"{service_name}: MINIO_ENDPOINT not in .env.example")
+                self.assertIn("MINIO_ROOT_USER", content,
+                    f"{service_name}: MINIO_ROOT_USER not in .env.example")
+                self.assertIn("MINIO_ROOT_PASSWORD", content,
+                    f"{service_name}: MINIO_ROOT_PASSWORD not in .env.example")
+                print(f"   ✓ {service_name}: MINIO_ENDPOINT, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD defined")
 
 
 if __name__ == "__main__":

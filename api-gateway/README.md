@@ -9,7 +9,7 @@ Gateway centralizado del proyecto KuisiScore (FastAPI).
 Expone un punto único de entrada para:
 
 - Autenticación (`/api/auth/*`) hacia `user-api`
-- Storage (`/api/storage/*`) hacia `music-storage`
+- Storage (`/api/storage/*`) hacia `metadata-api` y `files-api`
 
 ---
 
@@ -19,7 +19,8 @@ Variables principales:
 
 - `GATEWAY_PORT` (default `8000`)
 - `USER_API_URL` (default `http://localhost:3000`)
-- `MUSIC_STORAGE_URL` (default `http://localhost:8001/storage` en local)
+- `METADATA_API_URL` (default `http://localhost:8000/storage` en local)
+- `FILES_API_URL` (default `http://localhost:8001` en local)
 - `FRONTEND_URL` (default `http://localhost:8080`)
 - `DEBUG` (`True` / `False`)
 
@@ -59,7 +60,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ### Storage
 
 - `GET /api/storage/health` → health del storage vía proxy
-- `GET /api/storage` → GraphiQL de music-storage
+- `GET /api/storage` → GraphiQL de metadata-api
 - `GET|POST|PUT|PATCH|DELETE /api/storage/{path}` → proxy transparente
 
 ---

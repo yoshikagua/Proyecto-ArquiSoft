@@ -1,15 +1,11 @@
-"""
-End-to-End Tests
+"""End-to-end tests for the full running stack.
 
-Validan el flujo completo del sistema con todos los servicios:
-- Frontend → Gateway → User_API → PostgreSQL
-- Gateway → Notification Producer → RabbitMQ → Worker (15+ tests)
+Validan flujos críticos del sistema:
+- Frontend → Gateway → User API
+- Gateway → Notification Producer → RabbitMQ → Worker
 
-Módulos:
-- test_e2e_integration.py: Frontend → Gateway → Backend flows
-- test_notification_e2e.py: Notification flows through Gateway (15+ tests)
+Los flujos de pagos y storage se validan con tests de integración y de configuración.
 
-Requisitos: Stack COMPLETO corriendo (docker compose up)
-Duración: ~30-60 segundos
+Requisitos: stack completo corriendo con Docker Compose.
 Ejecutar: pytest tests/e2e/ -v
 """

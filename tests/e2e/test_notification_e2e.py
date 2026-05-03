@@ -16,28 +16,23 @@ GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8000")
 NOTIFICATION_PRODUCER_URL = os.getenv("NOTIFICATION_PRODUCER_URL", "http://localhost:8002")
 
 
+def _service_is_up(url: str) -> bool:
+    try:
+        requests.get(url, timeout=2)
+        return True
+    except requests.exceptions.RequestException:
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    not (_service_is_up(GATEWAY_URL) and _service_is_up(NOTIFICATION_PRODUCER_URL)),
+    reason="Notification E2E stack not available",
+)
+
+
 @pytest.mark.e2e
 class TestNotificationE2E:
     """End-to-end tests for notification flow"""
-    
-    @pytest.fixture(scope="session", autouse=True)
-    def setup_services(self):
-        """Verify all services are running"""
-        services = {
-            "Gateway": GATEWAY_URL,
-            "Notification Producer": NOTIFICATION_PRODUCER_URL
-        }
-        
-        available = []
-        for name, url in services.items():
-            try:
-                requests.get(url, timeout=2)
-                available.append(name)
-            except requests.exceptions.RequestException:
-                pass
-        
-        if len(available) < len(services):
-            pytest.skip(f"Services not available: {available}")
     
     def test_gateway_health_check(self):
         """Test that API Gateway is responding"""

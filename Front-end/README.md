@@ -139,7 +139,7 @@ Estado actual:
 
 - Login, registro y recuperación de contraseña: conectados al backend real vía gateway.
 - Perfil y actualización de usuario: conectados vía `/api/auth/me` y `/api/auth/users/{id}`.
-- Biblioteca, catálogo (géneros/instrumentos/formatos), likes/favoritos/comentarios/descargas y subida de partituras: conectados a `music-storage` vía `/api/storage`.
+- Biblioteca, catálogo (géneros/instrumentos/formatos), likes/favoritos/comentarios/descargas y subida de partituras: conectados a `metadata-api` y `files-api` vía `/api/storage`.
 - Panel admin: consume listado de usuarios vía gateway (`GET /api/auth/users`) según permisos.
 
 Guía detallada:

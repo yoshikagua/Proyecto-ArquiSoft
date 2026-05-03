@@ -1,16 +1,11 @@
-"""
-Integration Tests
+"""Integration tests for project components.
 
-Validan la integración entre componentes específicos:
+Current coverage:
 - Frontend ↔ Gateway
-- Gateway ↔ User_API
-- RabbitMQ ↔ Notification Producer (12+ tests)
+- Gateway ↔ User API
+- Payments module helpers and contract tests
+- RabbitMQ ↔ Notification Producer
 
-Módulos:
-- test_frontend_gateway_connection.py: Frontend → Gateway integration
-- test_gateway_user_api_connection.py: Gateway → User_API integration
-- test_notification_integration.py: Notification Producer & RabbitMQ (12+ tests)
-
-Requisitos: RabbitMQ, Notification Producer corriendo para tests de notificaciones
+Requisitos: levantar solo los servicios que cubre cada test.
 Ejecutar: pytest tests/integration/ -v
 """
