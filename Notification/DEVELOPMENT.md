@@ -41,7 +41,7 @@ Guía de desarrollo para trabajar en el módulo de notificaciones.
 5. **Verificar que todo funciona**
    ```bash
    docker compose ps
-   docker compose logs worker
+   docker compose logs notification-worker
    ```
 
 ---
@@ -82,9 +82,9 @@ docker compose ps
 **Ver logs en tiempo real**
 ```bash
 docker compose logs -f
-docker compose logs -f worker
-docker compose logs -f producer
-docker compose logs -f rabbitmq
+docker compose logs -f notification-worker
+docker compose logs -f notification-producer
+docker compose logs -f notification-rabbitmq
 ```
 
 **Detener servicios**
@@ -144,10 +144,10 @@ Dentro de psql:
 SELECT * FROM emails_enviados;
 ```
 
-### Test 4: Ver logs del worker
+### Test 4: Ver logs del notification-worker
 
 ```bash
-docker compose logs -f worker
+docker compose logs -f notification-worker
 ```
 
 Debería mostrar:
@@ -164,22 +164,22 @@ Worker listo...
 
 1. Verificar que está corriendo:
    ```bash
-   docker compose ps | grep worker
+   docker compose ps | grep notification-worker
    ```
 
 2. Ver logs:
    ```bash
-   docker compose logs worker
+   docker compose logs notification-worker
    ```
 
 3. Verificar conexión a RabbitMQ:
    ```bash
-   docker compose exec worker ping -c 3 rabbitmq
+   docker compose exec notification-worker ping -c 3 notification-rabbitmq
    ```
 
 4. Reiniciar:
    ```bash
-   docker compose restart worker
+   docker compose restart notification-worker
    ```
 
 ### Error "Connection refused" en RabbitMQ

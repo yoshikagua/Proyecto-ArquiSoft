@@ -155,11 +155,11 @@ curl -X POST http://localhost:8002 \
 
 | Servicio | Puerto | Descripción | Status |
 |----------|--------|-------------|--------|
-| **producer** | 8002 | API PHP Producer | ✅ |
-| **worker** | N/A | Consumer RabbitMQ | ✅ |
-| **rabbitmq** | 5672 | Broker de mensajes | ✅ |
-| **rabbitmq-mgmt** | 15672 | Console de RabbitMQ | ✅ |
-| **postgres** | 5433 | BD PostgreSQL | ✅ |
+| **notification-producer** | 8002 | API PHP Producer | ✅ |
+| **notification-worker** | N/A | Consumer RabbitMQ | ✅ |
+| **notification-rabbitmq** | 5672 | Broker de mensajes | ✅ |
+| **notification-rabbitmq-mgmt** | 15672 | Console de RabbitMQ | ✅ |
+| **notification-postgres** | 5433 | BD PostgreSQL | ✅ |
 
 ### Acceso a Interfaces
 
@@ -258,7 +258,7 @@ Cliente → POST /
 				 ↓ Retorna 200 OK
 ```
 
-### 2. **Worker**
+### 2. **Notification Worker**
 ```
 Escucha queue: notificaciones_email
 				 ↓ Consume mensaje
@@ -314,13 +314,13 @@ docker compose up --build
 
 ### Ver logs en tiempo real
 ```bash
-docker compose logs -f worker
-docker compose logs -f producer
+docker compose logs -f notification-worker
+docker compose logs -f notification-producer
 ```
 
-### Ejecutar comando dentro del worker
+### Ejecutar comando dentro del notification-worker
 ```bash
-docker compose exec worker php -v
+docker compose exec notification-worker php -v
 ```
 
 ### Conectar a PostgreSQL
@@ -384,7 +384,7 @@ Ver `INTEGRATION.md` (en Prototype-2) para detalles.
 ### "SMTP Error" en emails
 - Verificar `SENDGRID_API_KEY` en `.env`
 - Comprobar que SendGrid esté activo
-- Revisar logs: `docker compose logs worker`
+- Revisar logs: `docker compose logs notification-worker`
 
 ### "Database connection error"
 - Verificar que PostgreSQL esté corriendo
@@ -393,7 +393,7 @@ Ver `INTEGRATION.md` (en Prototype-2) para detalles.
 
 ### Worker no procesa mensajes
 - Verificar que worker esté corriendo: `docker compose ps`
-- Revisar logs: `docker compose logs worker`
+- Revisar logs: `docker compose logs notification-worker`
 - Comprobar que queue existe en RabbitMQ Management
 
 ---
