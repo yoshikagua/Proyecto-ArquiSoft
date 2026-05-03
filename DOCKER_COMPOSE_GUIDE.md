@@ -14,10 +14,14 @@ Servicios:
 - `api-gateway` (`:8000`)
 - `user-api` (`:3000`)
 - `music-storage` (`:8001` -> `:8000` interno)
-- `postgres` (`:5432`)
+- `postgres` (`:5432`) - Auth database
 - `mongo` (`:27017`)
 - `minio` (`:9000`, `:9001`)
 - `mailhog` (`:1025`, `:8025`)
+- `notification-rabbitmq` (`:5672`, `:15672`) - Message broker
+- `notification-postgres` (`:5433`) - Notification database
+- `notification-producer` (`:8002`) - Email notification API
+- `notification-worker` - Background message consumer
 
 Comandos:
 
@@ -82,6 +86,8 @@ docker compose down
 - Auth directo: http://localhost:3000
 - Storage directo: http://localhost:8001/storage
 - Storage vía gateway: http://localhost:8000/api/storage
+- Notification Producer: http://localhost:8002
+- RabbitMQ Management: http://localhost:15672 (guest/guest)
 - MinIO console: http://localhost:9001
 - MailHog: http://localhost:8025
 
@@ -91,6 +97,7 @@ Health checks:
 - http://localhost:8000/api/auth/health
 - http://localhost:8000/api/storage/health
 - http://localhost:3000/health
+- http://localhost:8002/status
 
 ---
 
@@ -109,6 +116,9 @@ docker compose up -d --build
 ```bash
 docker compose down -v
 ```
+
+- Para notifications: Verifica RabbitMQ en `http://localhost:15672` y Producer en `http://localhost:8002/status`
+- Para testing: Suite completa en `/tests/` incluye 35+ tests (validation, integration, e2e)
 
 ---
 

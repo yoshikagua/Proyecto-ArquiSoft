@@ -30,7 +30,8 @@ La solución está organizada en microservicios:
 - `api-gateway/`: FastAPI (punto de entrada único)
 - `auth-api/`: Rust + Axum (autenticación y usuarios)
 - `music-storage/`: FastAPI + Strawberry GraphQL (partituras)
-- Infraestructura: PostgreSQL, MongoDB, MinIO y MailHog
+- `Notification/`: PHP con RabbitMQ (notificaciones vía email)
+- Infraestructura: PostgreSQL (auth + notifications), MongoDB, RabbitMQ, MinIO y MailHog
 
 Flujo principal:
 
@@ -46,7 +47,8 @@ Flujo principal:
 | `api-gateway/` | Enrutamiento, proxy y health checks |
 | `auth-api/` | Registro, login, sesiones y usuarios |
 | `music-storage/` | Upload y consulta de partituras |
-| `tests/` | Pruebas `validation`, `integration` y `e2e` |
+| `Notification/` | Productor y worker de notificaciones (PHP + RabbitMQ) |
+| `tests/` | Pruebas `validation`, `integration` y `e2e` (incluye 35+ tests de notificaciones) |
 
 ---
 
@@ -83,6 +85,8 @@ docker compose down -v
 - Auth API (directo): `http://localhost:3000`
 - Music Storage GraphQL (directo): `http://localhost:8001/storage`
 - Music Storage vía Gateway: `http://localhost:8000/api/storage`
+- Notification Producer API: `http://localhost:8002`
+- RabbitMQ Management: `http://localhost:15672` (usuario: guest, clave: guest)
 - MinIO Console: `http://localhost:9001`
 - MailHog: `http://localhost:8025`
 
@@ -92,6 +96,7 @@ Health checks:
 - `GET /api/auth/health` en gateway: `http://localhost:8000/api/auth/health`
 - `GET /api/storage/health` en gateway: `http://localhost:8000/api/storage/health`
 - `GET /health` en auth-api: `http://localhost:3000/health`
+- `GET /status` en notification producer: `http://localhost:8002/status`
 
 ---
 
@@ -126,8 +131,11 @@ python -m pytest tests/e2e/ -q
 
 ## 📌 Estado actual
 
-- Stack Docker completo funcional
-- Integración frontend-gateway-auth-storage operativa
-- Recuperación de contraseña operativa vía gateway
-- Perfil y catálogo conectados al backend
-- Suite de pruebas de validación, integración y E2E pasando
+- ✓ Stack Docker completo funcional (13 servicios)
+- ✓ Integración frontend-gateway-auth-storage operativa
+- ✓ Módulo de notificaciones integrado (PHP + RabbitMQ)
+- ✓ Recuperación de contraseña operativa vía gateway
+- ✓ Notificaciones de email para signup, password recovery, y eventos de música
+- ✓ Perfil y catálogo conectados al backend
+- ✓ Suite de pruebas completa: 35+ tests (8 validation + 12+ integration + 15+ e2e)
+- ✓ Tests de notificación integrados en categorías de validation/integration/e2e
