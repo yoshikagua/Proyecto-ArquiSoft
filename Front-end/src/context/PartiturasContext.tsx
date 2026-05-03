@@ -15,6 +15,7 @@ interface PartiturasContextValue {
   toggleLike: (id: string) => Promise<void>;
   addComentario: (id: string, comentario: Partitura["comentarios"][number]) => Promise<void>;
   addPartitura: (partitura: Partitura) => void;
+  updatePartitura: (id: string, data: any) => Promise<void>;
   incrementDescargas: (id: string) => Promise<void>;
   eliminarPartitura: (id: string) => void;
   /** Partituras marcadas como favoritas */
@@ -136,6 +137,31 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
       }
       return [partitura, ...prev];
     });
+  const updatePartitura = async (id: string, data: any) => {
+    // Optimistically update the UI
+    setPartituras((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              titulo: data.title || p.titulo,
+              autor: data.composer || p.autor,
+              genero: data.genre || p.genero,
+              anio: data.year || p.anio,
+              descripcion: data.description !== undefined ? data.description : p.descripcion,
+              instrumentos: data.instruments || p.instrumentos,
+            }
+          : p
+      )
+    );
+
+    try {
+      await storageApi.updateScore({ id, ...data });
+      await refreshFromBackend();
+    } catch (err) {
+      await refreshFromBackend(); // Rollback if error
+      throw err;
+    }
   };
 
   const incrementDescargas = async (id: string) => {
@@ -172,6 +198,7 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
         toggleLike,
         addComentario,
         addPartitura,
+        updatePartitura,
         incrementDescargas,
         eliminarPartitura,
         favoritas,

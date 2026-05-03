@@ -24,6 +24,7 @@ import {
     Tag,
     Send,
     BookOpen,
+    Edit,
 } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -323,6 +324,17 @@ const DetallePartitura = () => {
                             <Download className="h-4 w-4" />
                             Descargar PDF
                         </button>
+
+                        {/* Botón editar (solo para el creador) */}
+                        {user && (partituraBase.uploadedBy === user.id?.toString() || partituraBase.uploadedBy === user.email) && (
+                            <button
+                                onClick={() => navigate(`/editar-partitura/${partituraBase.id}`)}
+                                className="flex items-center gap-2 rounded-lg bg-secondary px-5 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
+                            >
+                                <Edit className="h-4 w-4" />
+                                Editar
+                            </button>
+                        )}
 
                         {/* Botón like */}
                         <button
