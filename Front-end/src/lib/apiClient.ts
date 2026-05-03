@@ -471,108 +471,34 @@ export const storageApi = {
     };
   },
 
-  uploadScore: async (request: UploadScoreRequest): Promise<StorageScore> => {
+uploadScore: async (request: UploadScoreRequest): Promise<StorageScore> => {
     const token = getAuthToken();
-    if (!token) {
-      throw new ApiClientError("Debes iniciar sesión para subir una partitura", 401, {
-        message: "No autenticado",
-      });
-    }
-
-    const operations = {
-      query: `
-        mutation UploadScore(
-          $title: String!
-          $composer: String!
-          $genre: String!
-          $format_type: String!
-          $year: Int!
-          $description: String!
-          $instruments: [String!]!
-          $file: Upload!
-        ) {
-          uploadScore(
-            title: $title
-            composer: $composer
-            genre: $genre
-            formatType: $format_type
-            year: $year
-            description: $description
-            instruments: $instruments
-            file: $file
-          ) {
-            id
-            title
-            composer
-            genre
-            format
-            year
-            uploadedBy
-            fileUrl
-            description
-            instruments
-            likes
-            downloads
-            favorito
-            liked
-            comentarios {
-              id
-              usuario
-              avatar
-              texto
-              fecha
-            }
-          }
-        }
-      `,
-      variables: {
-        title: request.title,
-        composer: request.composer,
-        genre: request.genre,
-        format_type: request.format_type,
-        year: request.year,
-        description: request.description || "",
-        instruments: request.instruments || [],
-        file: null,
-      },
-    };
+    if (!token) throw new ApiClientError("Sesión requerida", 401, { message: "No autenticado" });
 
     const formData = new FormData();
-    formData.append("operations", JSON.stringify(operations));
-    formData.append("map", JSON.stringify({ "0": ["variables.file"] }));
-    formData.append("0", request.file);
+    formData.append("title", request.title);
+    formData.append("composer", request.composer);
+    formData.append("genre", request.genre);
+    formData.append("format_type", request.format_type);
+    formData.append("year", request.year.toString());
+    formData.append("description", request.description || "");
+    formData.append("instruments", JSON.stringify(request.instruments || []));
+    formData.append("file", request.file);
 
-    const response = await fetch(`${API_BASE_URL}/api/storage`, {
+    const response = await fetch(`${API_BASE_URL}/api/storage/upload-score`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Authorization": `Bearer ${token}` }, // El navegador pone el Content-Type multipart/form-data solo
       body: formData,
     });
 
     if (!response.ok) {
       const error = await handleErrorResponse(response);
-      throw new ApiClientError(
-        error.message || "Error al subir partitura",
-        response.status,
-        error
-      );
+      throw new ApiClientError(error.message || "Error al subir", response.status, error);
     }
 
-    const body = await response.json();
-    if (Array.isArray(body.errors) && body.errors.length > 0) {
-      throw new ApiClientError(
-        body.errors[0]?.message || "Error de GraphQL al subir partitura",
-        400,
-        { message: body.errors[0]?.message }
-      );
-    }
-
-    return {
-      ...body.data.uploadScore,
-      uploaded_by: body.data.uploadScore.uploadedBy,
-      file_url: body.data.uploadScore.fileUrl,
-    } as StorageScore;
+    const result = await response.json();
+    const score = result.data.uploadScore;
+    return { ...score, uploaded_by: score.uploadedBy, file_url: score.fileUrl } as StorageScore;
   },
 
   toggleLike: async (scoreId: string): Promise<StorageScore> => {
@@ -718,6 +644,14 @@ export const storageApi = {
       file_url: (data.registerDownload as unknown as { fileUrl?: string }).fileUrl || data.registerDownload.file_url,
     };
   },
+
+// actualiza el método deleteScore
+deleteScore: async (id: string): Promise<{ message?: string }> => {
+  return fetchApi<{ message?: string }>(`/api/storage/remove/${id}`, {
+    method: "DELETE",
+  });
+},
+
 };
 
 /**

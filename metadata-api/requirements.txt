@@ -2,7 +2,6 @@ fastapi
 uvicorn
 strawberry-graphql[fastapi]
 motor
-minio
 python-multipart
 pydantic
 python-jose
