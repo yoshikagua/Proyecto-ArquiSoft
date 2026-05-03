@@ -3,8 +3,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from app.core.storage import init_bucket, minio_client 
 from app.core.config import settings
 import uuid
-import magic  # <--- ESTO ES LO QUE FALTA
+import magic 
+import hashlib
 from io import BytesIO
+from minio.error import S3Error
 
 app = FastAPI(title="Files Storage Service")
 
@@ -32,32 +34,64 @@ async def validate_file_content(file: UploadFile):
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    # 1. Validar contenido real
     await validate_file_content(file)
-
-    # 2. Leer bytes para MinIO (después del seek(0) de la validación)
     file_bytes = await file.read()
     
     if not file_bytes:
          raise HTTPException(status_code=400, detail="El archivo está vacío")
 
-    file_id = str(uuid.uuid4())
-    object_key = f"{file_id}-{file.filename}"
+    # 1. Generar Hash SHA-256
+    file_hash = hashlib.sha256(file_bytes).hexdigest()
+    
+    # 2. Definir una estructura de nombre basada SOLO en el hash para evitar duplicidad física
+    # Opcional: Puedes guardar el nombre original solo en la base de datos de metadatos
+    object_key = f"{file_hash}.pdf" 
 
-    # 3. Operación con MinIO
+    # 3. LÓGICA DE DEDUPLICACIÓN: Verificar si ya existe en MinIO
+    try:
+        minio_client.stat_object(settings.BUCKET_NAME, object_key)
+        # Si no lanza error, el archivo YA EXISTE
+        return {
+            "message": "El archivo ya existe en el servidor",
+            "object_key": object_key,
+            "file_hash": file_hash,
+            "status": "skipped"
+        }
+    except S3Error:
+        # Si lanza S3Error es porque NO existe, procedemos a subir
+        pass
+
+    # 4. Operación con MinIO (solo si no existe)
     minio_client.put_object(
         settings.BUCKET_NAME,
         object_key,
         BytesIO(file_bytes),
         length=len(file_bytes),
         content_type="application/pdf",
+        metadata={"file-hash": file_hash}
     )
     
     return {
         "object_key": object_key, 
-        "file_name": file.filename
+        "file_name": file.filename,
+        "file_hash": file_hash,
+        "status": "uploaded"
     }
-
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "files-api"}
+
+@app.delete("/delete/{object_key}")
+async def delete_file(object_key: str):
+    try:
+        # Verificar si el objeto existe antes de intentar borrar
+        minio_client.stat_object(settings.BUCKET_NAME, object_key)
+        
+        # Eliminar el objeto
+        minio_client.remove_object(settings.BUCKET_NAME, object_key)
+        
+        return {"status": "success", "message": f"Archivo {object_key} eliminado de MinIO"}
+    except S3Error as e:
+        if e.code == "NoSuchKey":
+            raise HTTPException(status_code=404, detail="El archivo no existe en MinIO")
+        raise HTTPException(status_code=500, detail=str(e))

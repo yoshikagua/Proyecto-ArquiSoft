@@ -644,6 +644,14 @@ uploadScore: async (request: UploadScoreRequest): Promise<StorageScore> => {
       file_url: (data.registerDownload as unknown as { fileUrl?: string }).fileUrl || data.registerDownload.file_url,
     };
   },
+
+// actualiza el método deleteScore
+deleteScore: async (id: string): Promise<{ message?: string }> => {
+  return fetchApi<{ message?: string }>(`/api/storage/remove/${id}`, {
+    method: "DELETE",
+  });
+},
+
 };
 
 /**
