@@ -1,0 +1,75 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: payments_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: payments_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - payments_network
+
+  payments_app:
+    build:
+      context: ./payments_app
+      dockerfile: Dockerfile
+    container_name: payments_app
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: payments_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      FRONTEND_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./payments_app:/app
+      - /app/node_modules
+    command: npm run dev
+    networks:
+      - payments_network
+
+  mf_payments:
+    build:
+      context: ./mf_payments
+      dockerfile: Dockerfile
+    container_name: mf_payments
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+      PAYMENTS_API_URL: http://payments_app:3000
+    ports:
+      - "3001:3000"
+    depends_on:
+      - payments_app
+    volumes:
+      - ./mf_payments:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    networks:
+      - payments_network
+
+volumes:
+  postgres_data:
+
+networks:
+  payments_network:
+    driver: bridge
