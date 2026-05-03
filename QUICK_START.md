@@ -58,6 +58,7 @@ curl http://localhost:8000/api/storage/health
 curl http://localhost:3000/health
 curl http://localhost:8001/storage
 curl http://localhost:8002/status
+curl http://localhost:8002/status
 ```
 
 Resultado esperado:
