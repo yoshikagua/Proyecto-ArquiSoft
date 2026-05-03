@@ -88,6 +88,8 @@ services:
     depends_on:
       mongo:
         condition: service_started
+    networks:
+    - main-network
 
   # --- NUEVO: Servicio especializado en Archivos (REST) ---
   files-api:
