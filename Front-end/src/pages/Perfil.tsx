@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { User, Music, Heart, Shield, Save, Pencil, Trash2, Search, LogOut, FileText, MessageSquare } from "lucide-react";
 import { Usuario } from "@/types";
 import { toast } from "sonner";
-import { authApi, ApiClientError } from "@/lib/apiClient";
+import { authApi, storageApi,ApiClientError } from "@/lib/apiClient";
 
 const normalizeRole = (roleName?: string): "user" | "admin" | "superadmin" => {
   const normalized = (roleName || "").toLowerCase();
@@ -201,10 +201,21 @@ const Perfil = () => {
     toast.error("Eliminar usuarios no está disponible en backend actualmente");
   };
 
-  const handleEliminarPartitura = (id: string) => {
-    eliminarPartitura(id);
-    toast.success("Partitura eliminada correctamente");
-  };
+// En Perfil_3.tsx, localiza la función handleEliminarPartitura
+const handleEliminarPartitura = async (id: string) => {
+  try {
+    // CAMBIO: Llama al nuevo método deleteScore definido en el paso anterior
+    await storageApi.deleteScore(id); 
+    
+    // 2. Actualizar el estado global de la aplicación (UI)
+    eliminarPartitura(id); 
+    
+    toast.success("Partitura eliminada correctamente de la biblioteca y el servidor");
+  } catch (error) {
+    console.error("Error al eliminar la partitura:", error);
+    toast.error("No se pudo eliminar la partitura del servidor");
+  }
+};
 
   const usuariosFiltrados = usuarios.filter(
     (u) =>

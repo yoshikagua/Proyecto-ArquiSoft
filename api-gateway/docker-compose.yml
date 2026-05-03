@@ -65,22 +65,33 @@ services:
     volumes:
       - minio_data:/data
 
-  music-storage:
+# --- NUEVO: Servicio especializado en Metadatos (GraphQL) ---
+  metadata-api:
     build:
-      context: ../music-storage
-    container_name: gateway-music-storage
+      context: ../metadata-api
+    container_name: gateway-metadata-api
     environment:
       MONGO_URI: mongodb://mongo:27017
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: password
+      DB_NAME: music_db
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
       JWT_ALGORITHM: HS256
-    ports:
-      - "8001:8000"
+      BUCKET_NAME: scores
+      MINIO_PUBLIC_URL: http://localhost:9000
     depends_on:
       mongo:
         condition: service_started
+
+  # --- NUEVO: Servicio especializado en Archivos (REST) ---
+  files-api:
+    build:
+      context: ../files-api
+    container_name: gateway-files-api
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+      BUCKET_NAME: scores
+    depends_on:
       minio:
         condition: service_started
 
@@ -92,14 +103,17 @@ services:
       DEBUG: "True"
       GATEWAY_PORT: 8000
       USER_API_URL: http://user-api:3000
-      MUSIC_STORAGE_URL: http://music-storage:8000/storage
+      METADATA_API_URL: http://metadata-api:8000/storage
+      FILES_API_URL: http://files-api:8000
       FRONTEND_URL: http://localhost:8080
     ports:
       - "8000:8000"
     depends_on:
       user-api:
         condition: service_started
-      music-storage:
+      metadata-api:
+        condition: service_started
+      files-api:
         condition: service_started
 
 volumes:
