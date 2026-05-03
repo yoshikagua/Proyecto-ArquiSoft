@@ -15,6 +15,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - main-network
 
   mailhog:
     image: mailhog/mailhog
@@ -22,6 +24,8 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+    networks:
+      - main-network
 
   user-api:
     build:
@@ -40,6 +44,8 @@ services:
         condition: service_healthy
       mailhog:
         condition: service_started
+    networks:
+      - main-network
 
   mongo:
     image: mongo:7
@@ -48,6 +54,8 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - main-network
 
   minio:
     image: minio/minio
@@ -62,6 +70,8 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+    networks:
+      - main-network
 
   music-storage:
     build:
@@ -81,6 +91,8 @@ services:
         condition: service_started
       minio:
         condition: service_started
+    networks:
+      - main-network
 
   api-gateway:
     build:
@@ -91,6 +103,7 @@ services:
       GATEWAY_PORT: 8000
       USER_API_URL: http://user-api:3000
       MUSIC_STORAGE_URL: http://music-storage:8000/storage
+      NOTIFICATION_URL: http://notification-producer:8000
       FRONTEND_URL: http://localhost:8080
     ports:
       - "8000:8000"
@@ -99,6 +112,10 @@ services:
         condition: service_started
       music-storage:
         condition: service_started
+      notification-producer:
+        condition: service_started
+    networks:
+      - main-network
 
   frontend:
     build:
@@ -111,8 +128,95 @@ services:
     depends_on:
       api-gateway:
         condition: service_started
+    networks:
+      - main-network
+
+  # ===== Notification Module Services =====
+
+  notification-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: notification-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - main-network
+
+  notification-postgres:
+    image: postgres:15-alpine
+    container_name: notification-postgres
+    environment:
+      POSTGRES_DB: emails_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_notification_data:/var/lib/postgresql/data
+      - ./Notification/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d emails_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - main-network
+
+  notification-producer:
+    build:
+      context: ./Notification
+      dockerfile: Dockerfile
+    container_name: notification-producer
+    command: ["php", "-S", "0.0.0.0:8000", "router.php"]
+    ports:
+      - "8002:8000"
+    depends_on:
+      notification-rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: notification-rabbitmq
+      RABBITMQ_PORT: 5672
+    networks:
+      - main-network
+
+  notification-worker:
+    build:
+      context: ./Notification
+      dockerfile: Dockerfile
+    container_name: notification-worker
+    command: ["php", "email.php"]
+    depends_on:
+      notification-rabbitmq:
+        condition: service_healthy
+      notification-postgres:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: notification-rabbitmq
+      RABBITMQ_PORT: 5672
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      DB_HOST: notification-postgres
+      DB_PORT: 5432
+      DB_NAME: emails_db
+      DB_USER: postgres
+      DB_PASSWORD: password
+    networks:
+      - main-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   mongo_data:
   minio_data:
+  postgres_notification_data:
+
+networks:
+  main-network:
+    driver: bridge

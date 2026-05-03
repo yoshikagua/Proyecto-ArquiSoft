@@ -10,15 +10,18 @@ tests/
 ├── README.md (este archivo)
 ├── e2e/                          # End-to-End Tests
 │   ├── __init__.py
-│   └── test_e2e_integration.py
+│   ├── test_e2e_integration.py
+│   └── test_notification_e2e.py  # ✨ Notification E2E tests (15+ tests)
 ├── integration/                  # Integration Tests
 │   ├── __init__.py
 │   ├── test_frontend_gateway_connection.py
-│   └── test_gateway_user_api_connection.py
+│   ├── test_gateway_user_api_connection.py
+│   └── test_notification_integration.py  # ✨ Notification Integration (12+ tests)
 └── validation/                   # Validation Tests
     ├── __init__.py
     ├── test_docker_compose_sync.py
-    └── test_env_consistency.py
+    ├── test_env_consistency.py
+    └── test_notification_validation.py  # ✨ Notification Validation (8 tests)
 ```
 
 ## Categorías de Tests
@@ -136,6 +139,9 @@ python -m pytest tests/validation/test_docker_compose_sync.py -v
 # Solo env consistency
 python -m pytest tests/validation/test_env_consistency.py -v
 
+# Solo notification validation
+python -m pytest tests/validation/test_notification_validation.py -v
+
 # Sin requerimientos de servicios corriendo
 python tests/validation/test_docker_compose_sync.py
 python tests/validation/test_env_consistency.py
@@ -143,15 +149,114 @@ python tests/validation/test_env_consistency.py
 
 ---
 
+## 4️⃣ Notification Tests ✨ (Nuevos)
+
+Los tests de notificación están integrados en las tres categorías para una validación completa del módulo de notificaciones:
+
+### Notification Validation Tests
+**Ubicación:** `tests/validation/test_notification_validation.py`
+
+Validan la **estructura de datos** sin dependencias externas:
+- ✓ Formato de email válido e inválido
+- ✓ Estructura de requests de notificación
+- ✓ Campos requeridos vs opcionales
+- ✓ Tipos de datos correctos
+
+**Tests:** 8 casos
+- `test_valid_email_format`: Validación de emails válidos
+- `test_invalid_email_format`: Rechazo de emails inválidos
+- `test_notification_request_structure`: Estructura correcta de requests
+- `test_missing_required_email_field`: Campo email obligatorio
+- `test_optional_fields_defaults`: Valores por defecto
+
+**Requisitos:**
+- ✗ Ninguno - no requiere servicios
+
+**Ejecutar:**
+```bash
+pytest tests/validation/test_notification_validation.py -v
+```
+
+### Notification Integration Tests
+**Ubicación:** `tests/integration/test_notification_integration.py`
+
+Validan la **integración** del Notification Producer con RabbitMQ:
+- ✓ Health check de Producer API
+- ✓ Envío de emails a través de Producer
+- ✓ Confirmación de mensajes en queue RabbitMQ
+- ✓ Manejo de errores (JSON malformado, caracteres especiales)
+
+**Tests:** 12+ casos
+- `TestNotificationProducerAPI` (7 tests):
+  - Health check, envío de email, errores
+- `TestRabbitMQIntegration` (3 tests):
+  - Queue existe, conteo de mensajes, durabilidad
+- `TestErrorHandling` (4 tests):
+  - JSON malformado, caracteres especiales, contenido grande
+
+**Requisitos:**
+- ✓ RabbitMQ corriendo en `localhost:15672`
+- ✓ Notification Producer corriendo en `localhost:8002`
+
+**Variables de entorno:**
+```
+NOTIFICATION_PRODUCER_URL=http://localhost:8002
+RABBITMQ_MANAGEMENT_URL=http://localhost:15672
+```
+
+**Ejecutar:**
+```bash
+# Con docker-compose corriendo
+docker compose up -d notification-rabbitmq notification-producer
+pytest tests/integration/test_notification_integration.py -v
+```
+
+### Notification E2E Tests
+**Ubicación:** `tests/e2e/test_notification_e2e.py`
+
+Validan **flujos completos** de notificación a través del Gateway:
+- ✓ Notificaciones por registro de usuario
+- ✓ Recuperación de contraseña
+- ✓ Notificaciones por upload de música
+- ✓ Batch de notificaciones concurrentes
+- ✓ Contenido HTML en emails
+
+**Tests:** 15+ casos
+- `TestNotificationE2E` (5 tests):
+  - Health check Gateway, endpoints, requests concurrentes
+- `TestNotificationScenarios` (5 tests):
+  - Registro, password recovery, upload, batch, HTML
+- `TestNotificationReliability` (3 tests):
+  - Reintentos, timeouts, resiliencia
+
+**Requisitos:**
+- ✓ Stack COMPLETO corriendo (docker compose up)
+- ✓ Frontend, Gateway, Auth-API, Notification services
+
+**Variables de entorno:**
+```
+GATEWAY_URL=http://localhost:8000
+NOTIFICATION_PRODUCER_URL=http://localhost:8002
+```
+
+**Ejecutar:**
+```bash
+# Con docker-compose completo corriendo
+docker compose up -d
+pytest tests/e2e/test_notification_e2e.py -v
+```
+
+---
+
 ## Comparativa de Categorías
 
-| Aspecto | E2E | Integration | Validation |
-|---------|-----|-------------|-----------|
-| **Alcance** | Sistema completo | Componentes específicos | Configuración estática |
-| **Servicios requeridos** | ✓ Todos (Frontend, Gateway, User_API, DB) | ~ Algunos (con mocks) | ✗ Ninguno |
-| **Duración** | 📊 Lenta (~30-60 seg) | 📊 Media (~10-20 seg) | 📊 Rápida (<5 seg) |
-| **Casos de uso** | Validación final pre-deploy | Desarrollo de features | CI/CD pipeline |
-| **Ejecutar cada** | Antes de push a main | Cambios en API Gateway | Commit a rama develop |
+| Aspecto | E2E | Integration | Validation | Notification |
+|---------|-----|-------------|-----------|--------------|
+| **Alcance** | Sistema completo | Componentes específicos | Configuración estática | Módulo notificaciones |
+| **Servicios requeridos** | ✓ Todos (Frontend, Gateway, User_API, DB) | ~ Algunos (con mocks) | ✗ Ninguno | ~ Algunos (RabbitMQ, Producer) |
+| **Duración** | 📊 Lenta (~30-60 seg) | 📊 Media (~10-20 seg) | 📊 Rápida (<5 seg) | 📊 Media-Rápida (~5-15 seg) |
+| **Casos de uso** | Validación final pre-deploy | Desarrollo de features | CI/CD pipeline | Testing de notificaciones |
+| **Ejecutar cada** | Antes de push a main | Cambios en API Gateway | Commit a rama develop | Cambios en notificaciones |
 
 ---
 
@@ -165,6 +270,12 @@ pytest tests/integration/ -v
 # Cambio en docker-compose o .env
 pytest tests/validation/ -v
 
+# Cambios en notificaciones (sin stack completo)
+pytest tests/validation/test_notification_validation.py -v
+
+# Cambios en integración de notificaciones (con servicios)
+pytest tests/integration/test_notification_integration.py -v
+
 # Antes de commit
 pytest tests/integration/ tests/validation/ -v
 ```
@@ -176,12 +287,18 @@ pytest tests/ -v
 
 # O por categorías con output detallado
 pytest tests/e2e/ tests/integration/ tests/validation/ -v -s
+
+# Solo tests de notificación completos
+pytest tests/validation/test_notification_validation.py tests/integration/test_notification_integration.py tests/e2e/test_notification_e2e.py -v
 ```
 
 ### 🔄 En CI/CD Pipeline
 ```bash
 # Rápido: solo validación de configuración
 pytest tests/validation/ --tb=short
+
+# Con servicios: validación + integración
+pytest tests/validation/ tests/integration/test_notification_integration.py --tb=short
 
 # Completo: si hay servicios en contenedores
 pytest tests/ --tb=short -q
