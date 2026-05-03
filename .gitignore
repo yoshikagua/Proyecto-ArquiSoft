@@ -1,3 +1,5 @@
+## Ignored by project
+
 # Python
 __pycache__/
 *.py[cod]
@@ -14,8 +16,6 @@ downloads/
 eggs/
 .eggs/
 lib/
-!Front-end/src/lib/
-!Front-end/src/lib/**
 lib64/
 parts/
 sdist/
@@ -36,6 +36,7 @@ bun.lockb
 .env.local
 
 # Editor
+.vscode/
 .vscode/*
 !.vscode/extensions.json
 .idea/
@@ -47,6 +48,17 @@ bun.lockb
 target/
 Cargo.lock
 
+# Testing / tooling
+.pytest_cache/
+*.lock
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Vendor and build artifacts
+vendor/
+
+# Allowlist for Front-end lib
+!Front-end/src/lib/
+!Front-end/src/lib/**
