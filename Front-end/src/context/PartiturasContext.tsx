@@ -137,6 +137,8 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
       }
       return [partitura, ...prev];
     });
+  };
+
   const updatePartitura = async (id: string, data: any) => {
     // Optimistically update the UI
     setPartituras((prev) =>
