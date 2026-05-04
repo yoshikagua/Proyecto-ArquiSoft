@@ -49,7 +49,7 @@ const Navbar = () => {
     const navItems: NavItem[] = [
         { label: "Partituras", path: "/partituras", icon: <BookOpen className="h-4 w-4" /> },
         { label: "Instrumentos", path: "/instrumentos", icon: <Music className="h-4 w-4" /> },
-        { label: "Donaciones", path: "/api/payments", icon: <CreditCard className="h-4 w-4" /> },
+        { label: "Donaciones", path: "http://localhost:3003/payments", icon: <CreditCard className="h-4 w-4" /> },
         ...(user ? [{ label: "Subir Partitura", path: "/subir-partitura", icon: <Upload className="h-4 w-4" /> }] : []),
     ];
 
@@ -85,8 +85,8 @@ const Navbar = () => {
                         <button
                             key={item.path}
                             onClick={() => {
-                                if (item.path.startsWith("/api/")) {
-                                    window.location.href = `${API_BASE_URL}${item.path}`;
+                                if (item.path.startsWith("http") || item.path.startsWith("/api/")) {
+                                    window.location.href = item.path;
                                 } else {
                                     navigate(item.path);
                                 }
@@ -220,8 +220,8 @@ const Navbar = () => {
                             <button
                                 key={item.path}
                                 onClick={() => {
-                                    if (item.path.startsWith("/api/")) {
-                                        window.location.href = `${API_BASE_URL}${item.path}`;
+                                    if (item.path.startsWith("http") || item.path.startsWith("/api/")) {
+                                        window.location.href = item.path;
                                     } else {
                                         navigate(item.path);
                                     }

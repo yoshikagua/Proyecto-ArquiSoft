@@ -88,6 +88,21 @@ services:
     networks:
       - main-network
 
+  mf_payments:
+    build:
+      context: ./mf_payments
+      dockerfile: Dockerfile
+    container_name: mf-payments-frontend
+    environment:
+      NODE_ENV: development
+      PAYMENTS_API_URL: http://payments_app:3000
+    ports:
+      - "3003:3000"
+    depends_on:
+      - payments_app
+    networks:
+      - main-network
+
   mongo:
     image: mongo:7
     container_name: proyectosoft-mongo
