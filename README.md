@@ -93,11 +93,12 @@ docker compose down -v
 
 Health checks:
 
-- `GET /health` en gateway: `http://localhost:8000/health`
-- `GET /api/auth/health` en gateway: `http://localhost:8000/api/auth/health`
-- `GET /api/storage/health` en gateway: `http://localhost:8000/api/storage/health`
-- `GET /health` en auth-api: `http://localhost:3000/health`
-- `GET /status` en notification producer: `http://localhost:8002/status`
+- Gateway Root: [http://localhost:8000/health](http://localhost:8000/health)
+- Auth Health (vía Gateway): [http://localhost:8000/api/auth/health](http://localhost:8000/api/auth/health)
+- Storage Health (vía Gateway): [http://localhost:8000/api/storage/health](http://localhost:8000/api/storage/health)
+- Notifications Health (vía Gateway): [http://localhost:8000/api/notifications/health](http://localhost:8000/api/notifications/health)
+- Auth API (Directo): [http://localhost:3000/health](http://localhost:3000/health)
+- Notification Producer (Directo): [http://localhost:8002/status](http://localhost:8002/status)
 
 ---
 

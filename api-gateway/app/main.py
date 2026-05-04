@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config.settings import settings
-from .routers import auth, storage
+from .routers import auth, storage, notifications
 
 # Crear aplicación FastAPI
 app = FastAPI(
@@ -23,6 +23,7 @@ app.add_middleware(
 # Incluir routers
 app.include_router(auth.router)
 app.include_router(storage.router)
+app.include_router(notifications.router)
 
 
 @app.get("/")

@@ -133,10 +133,18 @@ async def signup(request: SignUpRequest):
 
 @router.get("/health")
 async def health_check():
-    """Verificar estado de los servicios"""
+    """Verificar estado de los servicios de autenticación"""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{settings.user_api_url}/health")
+            user_api_status = "online" if response.status_code == 200 else f"offline_{response.status_code}"
+    except Exception:
+        user_api_status = "unreachable"
+
     return {
         "status": "ok",
-        "user_api": settings.user_api_url,
+        "user_api": user_api_status,
+        "user_api_url": settings.user_api_url,
         "frontend": settings.frontend_url
     }
 

@@ -212,7 +212,7 @@ Ver `.env.example` para configuración completa.
 **Críticas:**
 - `SENDGRID_API_KEY`: Clave de API de SendGrid (requerida para producción)
 - `RABBITMQ_HOST`: Host de RabbitMQ (default: `rabbitmq`)
-- `DB_HOST`: Host de PostgreSQL (default: `postgres`)
+- `DB_HOST`: Host de PostgreSQL (default: `notification-postgres`)
 
 ---
 
@@ -298,7 +298,7 @@ Cada email registra:
 - **Encriptación:** `STARTTLS`
 
 ### PostgreSQL
-- **Host:** `postgres` (en Docker network)
+- **Host:** `notification-postgres` (en Docker network)
 - **Puerto:** `5433` (expuesto)
 - **BD:** `emails_db`
 - **Usuario:** `user`

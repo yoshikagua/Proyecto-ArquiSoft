@@ -30,22 +30,23 @@ docker compose ps
 
 ## 3) Endpoints principales
 
-- Frontend: http://localhost:8080
-- API Gateway: http://localhost:8000
-- User API (auth): http://localhost:3000
-- Metadata API (vía gateway): http://localhost:8000/api/storage
-- Notification Producer API: http://localhost:8002
-- RabbitMQ Management: http://localhost:15672 (guest/guest)
-- MinIO Console: http://localhost:9001
-- MailHog: http://localhost:8025
+- Frontend: [http://localhost:8080](http://localhost:8080)
+- API Gateway: [http://localhost:8000](http://localhost:8000)
+- User API (auth directo): [http://localhost:3000](http://localhost:3000)
+- Metadata API (vía gateway): [http://localhost:8000/api/storage](http://localhost:8000/api/storage)
+- Notification API (vía gateway): [http://localhost:8000/api/notifications/health](http://localhost:8000/api/notifications/health)
+- Notification Producer (directo): [http://localhost:8002](http://localhost:8002)
+- RabbitMQ Management: [http://localhost:15672](http://localhost:15672) (guest/guest)
+- MinIO Console: [http://localhost:9001](http://localhost:9001)
+- MailHog: [http://localhost:8025](http://localhost:8025)
 
 Health checks:
 
-- Gateway: http://localhost:8000/health
-- Auth vía gateway: http://localhost:8000/api/auth/health
-- Storage vía gateway: http://localhost:8000/api/storage/health
-- Auth directo: http://localhost:3000/health
-- Notification Producer: http://localhost:8002/status
+- Gateway Root: [http://localhost:8000/health](http://localhost:8000/health)
+- Auth vía gateway: [http://localhost:8000/api/auth/health](http://localhost:8000/api/auth/health)
+- Storage vía gateway: [http://localhost:8000/api/storage/health](http://localhost:8000/api/storage/health)
+- Notifications vía gateway: [http://localhost:8000/api/notifications/health](http://localhost:8000/api/notifications/health)
+- Notification Producer (directo): [http://localhost:8002/status](http://localhost:8002/status)
 
 ---
 
@@ -55,7 +56,7 @@ Health checks:
 curl http://localhost:8000/health
 curl http://localhost:8000/api/auth/health
 curl http://localhost:8000/api/storage/health
-curl http://localhost:3000/health
+curl http://localhost:8000/api/notifications/health
 curl http://localhost:8000/api/storage
 curl http://localhost:8002/status
 ```
