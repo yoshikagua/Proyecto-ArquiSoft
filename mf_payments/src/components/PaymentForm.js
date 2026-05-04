@@ -251,6 +251,19 @@ export function PaymentForm({ idUser, nameUser }) {
             />
           )}
 
+          {/* External Method Message */}
+          {(selectedMethod === "nequi" || selectedMethod === "mercadopago") && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center animate-in fade-in slide-in-from-top-2 duration-300">
+              <p className="text-amber-800 text-sm font-medium">
+                Al continuar, serás redirigido a la plataforma de{" "}
+                <span className="font-bold">
+                  {selectedMethod === "nequi" ? "Nequi" : "Mercado Pago"}
+                </span>{" "}
+                para completar tu donación de forma segura.
+              </p>
+            </div>
+          )}
+
           {/* Submit Button */}
           <button
             type="submit"

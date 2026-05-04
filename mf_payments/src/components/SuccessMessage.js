@@ -1,6 +1,8 @@
 "use client";
 
-export function SuccessMessage({ data, nameUser }) {
+export function SuccessMessage({ data, paymentUser }) {
+  const nameUser = paymentUser?.name_user;
+
   const formatCurrency = (amount, currency) => {
     return new Intl.NumberFormat("es-AR", {
       style: "currency",
@@ -9,7 +11,10 @@ export function SuccessMessage({ data, nameUser }) {
   };
 
   const formatDate = (timestamp) => {
-    return new Date(timestamp).toLocaleDateString("es-AR", {
+    if (!timestamp) return "Fecha no disponible";
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "Fecha inválida";
+    return date.toLocaleDateString("es-AR", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -17,6 +22,14 @@ export function SuccessMessage({ data, nameUser }) {
       minute: "2-digit",
     });
   };
+
+  // Extraer datos de forma robusta (pueden venir en la raíz o en .data)
+  const txAmount = data?.data?.amount ?? data?.amount;
+  const txCurrency = data?.data?.currency ?? data?.currency;
+  const txId = data?.data?.transactionId ?? data?.transactionId;
+  const txMethod = data?.data?.method ?? data?.method ?? data?.gateway;
+  const txTimestamp = data?.data?.timestamp ?? data?.timestamp;
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -52,7 +65,7 @@ export function SuccessMessage({ data, nameUser }) {
           <div className="flex justify-between items-center pb-3 border-b border-emerald-200">
             <span className="text-slate-700 font-semibold">Monto donado</span>
             <span className="font-bold text-lg text-emerald-700">
-              {formatCurrency(data?.data?.amount, data?.data?.currency)}
+              {formatCurrency(txAmount, txCurrency)}
             </span>
           </div>
 
@@ -61,16 +74,16 @@ export function SuccessMessage({ data, nameUser }) {
               ID de Transacción
             </span>
             <span className="font-mono text-sm text-emerald-600 break-all font-bold">
-              {data?.data?.transactionId}
+              {txId || "N/A"}
             </span>
           </div>
 
           <div className="flex justify-between items-center pb-3 border-b border-emerald-200">
             <span className="text-slate-700 font-semibold">Método</span>
             <span className="text-slate-900 capitalize font-bold">
-              {data?.data?.method === "creditcard"
+              {txMethod === "creditcard"
                 ? "Tarjeta de Crédito"
-                : data?.data?.method === "mercadopago"
+                : txMethod === "mercadopago"
                   ? "Mercado Pago"
                   : "Nequi"}
             </span>
@@ -79,7 +92,7 @@ export function SuccessMessage({ data, nameUser }) {
           <div className="flex justify-between items-center">
             <span className="text-slate-700 font-semibold">Fecha</span>
             <span className="text-slate-900 text-sm font-medium">
-              {formatDate(data?.data?.timestamp)}
+              {formatDate(txTimestamp)}
             </span>
           </div>
         </div>
@@ -93,7 +106,7 @@ export function SuccessMessage({ data, nameUser }) {
 
         {/* Action Button */}
         <a
-          href="/payments"
+          href={`/payments?id_user=${paymentUser?.id_user}&name_user=${paymentUser?.name_user}`}
           className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-3 rounded-lg transition-all text-center shadow-md block mt-6"
         >
           Hacer otra donación

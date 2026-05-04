@@ -78,7 +78,7 @@ export default function PaymentsPage({ searchParams }) {
         {success && responseData ? (
           <SuccessMessage
             data={responseData}
-            nameUser={paymentUser?.name_user}
+            paymentUser={paymentUser}
           />
         ) : error ? (
           /* Error State */
