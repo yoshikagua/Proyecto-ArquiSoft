@@ -111,10 +111,11 @@ npm run test        # Ejecutar pruebas con Vitest
 | `/recover-password`   | `RecoverPassword`    | Público      | Recuperar contraseña               |
 | `/verify-code`        | `VerifyCodePage`     | Público      | Verificar código OTP               |
 | `/reset-password`     | `ResetPassword`      | Público      | Restablecer contraseña             |
-| `/partituras`         | `Partituras`         | � Público    | Biblioteca de partituras           |
-| `/partituras/:id`     | `DetallePartitura`   | � Público    | Detalle de una partitura           |
-| `/instrumentos`       | `Instrumentos`       | � Público    | Catálogo de instrumentos           |
+| `/partituras`         | `Partituras`         | 🟢 Público    | Biblioteca de partituras           |
+| `/partituras/:id`     | `DetallePartitura`   | 🟢 Público    | Detalle de una partitura           |
+| `/instrumentos`       | `Instrumentos`       | 🟢 Público    | Catálogo de instrumentos           |
 | `/subir-partitura`    | `SubirPartitura`     | 🔒 Protegido | Formulario para subir PDF          |
+| `(Externo)`           | `mf_payments`        | 🔒 Protegido | Microfrontend de donaciones        |
 
 ---
 
@@ -140,6 +141,7 @@ Estado actual:
 - Login, registro y recuperación de contraseña: conectados al backend real vía gateway.
 - Perfil y actualización de usuario: conectados vía `/api/auth/me` y `/api/auth/users/{id}`.
 - Biblioteca, catálogo (géneros/instrumentos/formatos), likes/favoritos/comentarios/descargas y subida de partituras: conectados a `metadata-api` y `files-api` vía `/api/storage`.
+- Pagos y donaciones: integrados a través de la redirección dinámica hacia el microfrontend externo `mf_payments`, pasando los datos de sesión por URL.
 - Panel admin: consume listado de usuarios vía gateway (`GET /api/auth/users`) según permisos.
 
 Guía detallada:

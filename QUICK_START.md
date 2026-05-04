@@ -31,9 +31,11 @@ docker compose ps
 ## 3) Endpoints principales
 
 - Frontend: [http://localhost:8080](http://localhost:8080)
+- Pagos UI (Microfrontend): [http://localhost:3003/payments](http://localhost:3003/payments)
 - API Gateway: [http://localhost:8000](http://localhost:8000)
 - User API (auth directo): [http://localhost:3000](http://localhost:3000)
 - Metadata API (vía gateway): [http://localhost:8000/api/storage](http://localhost:8000/api/storage)
+- Pagos API (vía gateway): [http://localhost:8000/api/payments](http://localhost:8000/api/payments)
 - Notification API (vía gateway): [http://localhost:8000/api/notifications/health](http://localhost:8000/api/notifications/health)
 - Notification Producer (directo): [http://localhost:8002](http://localhost:8002)
 - RabbitMQ Management: [http://localhost:15672](http://localhost:15672) (guest/guest)
@@ -45,6 +47,7 @@ Health checks:
 - Gateway Root: [http://localhost:8000/health](http://localhost:8000/health)
 - Auth vía gateway: [http://localhost:8000/api/auth/health](http://localhost:8000/api/auth/health)
 - Storage vía gateway: [http://localhost:8000/api/storage/health](http://localhost:8000/api/storage/health)
+- Pagos vía gateway: [http://localhost:8000/api/payments](http://localhost:8000/api/payments)
 - Notifications vía gateway: [http://localhost:8000/api/notifications/health](http://localhost:8000/api/notifications/health)
 - Notification Producer (directo): [http://localhost:8002/status](http://localhost:8002/status)
 

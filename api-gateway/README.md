@@ -10,6 +10,7 @@ Expone un punto único de entrada para:
 
 - Autenticación (`/api/auth/*`) hacia `user-api`
 - Storage (`/api/storage/*`) hacia `metadata-api` y `files-api`
+- Pagos (`/api/payments/*`) hacia `payments_app`
 
 ---
 
@@ -21,6 +22,7 @@ Variables principales:
 - `USER_API_URL` (default `http://localhost:3000`)
 - `METADATA_API_URL` (default `http://metadata-api:8000/storage` en Docker)
 - `FILES_API_URL` (default `http://files-api:8000` en Docker)
+- `PAYMENTS_API_URL` (default `http://payments_app:3000` en Docker)
 - `FRONTEND_URL` (default `http://localhost:8080`)
 - `DEBUG` (`True` / `False`)
 
@@ -62,6 +64,10 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 - `GET /api/storage/health` → health del storage vía proxy
 - `GET /api/storage` → GraphiQL de metadata-api
 - `GET|POST|PUT|PATCH|DELETE /api/storage/{path}` → proxy transparente
+
+### Pagos
+
+- `GET|POST /api/payments/*` → proxy transparente hacia `payments_app`
 
 ---
 

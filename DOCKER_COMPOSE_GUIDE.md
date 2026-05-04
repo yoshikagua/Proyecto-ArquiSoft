@@ -11,8 +11,10 @@ Referencia de los `docker-compose.yml` del repositorio y cuándo usar cada uno.
 Servicios:
 
 - `frontend` (`:8080`)
+- `mf_payments` (`:3003`) - Microfrontend de pagos
 - `api-gateway` (`:8000`)
 - `user-api` (`:3000`)
+- `payments_app` (`:3002` directo, interno) - Backend de pagos
 - `metadata-api` (interno, expuesto vía gateway)
 - `files-api` (interno, expuesto vía gateway)
 - `postgres` (`:5432`) - Auth database
