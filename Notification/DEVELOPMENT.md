@@ -13,11 +13,11 @@ Guía de desarrollo para trabajar en el módulo de notificaciones.
 
 ### Pasos
 
-1. **Clonar y entrar a rama notification**
+1. **Clonar y abrir el módulo**
    ```bash
    git clone <repo>
    cd Proyecto-ArquiSoft
-   git checkout notification
+   cd Notification
    ```
 
 2. **Copiar archivo de configuración**

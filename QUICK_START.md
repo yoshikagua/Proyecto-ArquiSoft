@@ -32,8 +32,7 @@ docker compose ps
 - Frontend: http://localhost:8080
 - API Gateway: http://localhost:8000
 - User API (auth): http://localhost:3000
-- Music Storage (directo): http://localhost:8001/storage
-- Music Storage (vía gateway): http://localhost:8000/api/storage
+- Metadata API (vía gateway): http://localhost:8000/api/storage
 - Notification Producer API: http://localhost:8002
 - RabbitMQ Management: http://localhost:15672 (guest/guest)
 - MinIO Console: http://localhost:9001
@@ -56,15 +55,14 @@ curl http://localhost:8000/health
 curl http://localhost:8000/api/auth/health
 curl http://localhost:8000/api/storage/health
 curl http://localhost:3000/health
-curl http://localhost:8001/storage
-curl http://localhost:8002/status
+curl http://localhost:8000/api/storage
 curl http://localhost:8002/status
 ```
 
 Resultado esperado:
 
 - Respuestas `200` en health checks
-- `http://localhost:8001/storage` y `http://localhost:8000/api/storage` devuelven interfaz GraphiQL
+- `http://localhost:8000/api/storage` devuelve interfaz GraphiQL
 
 ---
 
@@ -73,28 +71,28 @@ Resultado esperado:
 Desde la raíz:
 
 ```bash
-python -m pytest tests/ -q
+python -m pytest -c tests/pytest.ini tests/ -q
 ```
 
 Por categoría:
 
 ```bash
-python -m pytest tests/validation/ -q
-python -m pytest tests/integration/ -q
-python -m pytest tests/e2e/ -q
+python -m pytest -c tests/pytest.ini tests/validation/ -q
+python -m pytest -c tests/pytest.ini tests/integration/ -q
+python -m pytest -c tests/pytest.ini tests/e2e/ -q
 ```
 
 Testing específico de notificaciones:
 
 ```bash
 # Validación (sin dependencias)
-python -m pytest tests/validation/test_notification_validation.py -q
+python -m pytest -c tests/pytest.ini tests/validation/test_notification_validation.py -q
 
 # Integración (con RabbitMQ y Producer)
-python -m pytest tests/integration/test_notification_integration.py -q
+python -m pytest -c tests/pytest.ini tests/integration/test_notification_integration.py -q
 
 # E2E (stack completo)
-python -m pytest tests/e2e/test_notification_e2e.py -q
+python -m pytest -c tests/pytest.ini tests/e2e/test_notification_e2e.py -q
 ```
 
 ---
@@ -120,6 +118,7 @@ docker compose down -v
 - Perfil de usuario (`/api/auth/me`, `PUT /api/auth/users/{id}`) está integrado.
 - Gestión de usuarios (`GET /api/auth/users`) requiere token válido y permisos del auth-api.
 - Notificaciones de email se envían automáticamente en signup y password recovery.
+- Si ejecutas `pytest` desde la raíz, usa `-c tests/pytest.ini` para cargar los markers del directorio `tests/`.
 - RabbitMQ gestiona la cola de mensajes; ver consola en `http://localhost:15672`.
 - Para detalles técnicos, ver:
   - [DOCKER_COMPOSE_GUIDE.md](./DOCKER_COMPOSE_GUIDE.md)

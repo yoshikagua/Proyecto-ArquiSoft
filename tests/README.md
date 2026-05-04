@@ -7,6 +7,7 @@ La suite de tests está organizada en tres categorías principales para facilita
 ```
 tests/
 ├── __init__.py
+├── pytest.ini                    # Marcadores y configuración de pytest
 ├── README.md (este archivo)
 ├── e2e/                          # End-to-End Tests
 │   ├── __init__.py
@@ -30,7 +31,7 @@ tests/
 **Ubicación:** `tests/e2e/`
 
 Validan el **flujo completo** del sistema con todos los servicios corriendo:
-- **Frontend** → **API Gateway** → **User_API** → **PostgreSQL**
+- **Frontend** → **API Gateway** → **Auth API** → **PostgreSQL**
 
 **Test principal:** `test_e2e_integration.py`
 - Carga del frontend
@@ -42,19 +43,19 @@ Validan el **flujo completo** del sistema con todos los servicios corriendo:
 **Requisitos:** 
 - ✓ Frontend corriendo en `http://localhost:8080`
 - ✓ API Gateway corriendo en `http://localhost:8000`
-- ✓ User_API corriendo en `http://localhost:3000`
+- ✓ Auth API corriendo en `http://localhost:3000`
 - ✓ PostgreSQL corriendo en `localhost:5432`
 
 **Ejecutar:**
 ```bash
 # Ejecutar todos los E2E tests
-python -m pytest tests/e2e/ -v
+python -m pytest -c tests/pytest.ini tests/e2e/ -v
 
 # Ejecutar un test específico
-python -m pytest tests/e2e/test_e2e_integration.py::TestE2EIntegration::test_01_gateway_health_check -v
+python -m pytest -c tests/pytest.ini tests/e2e/test_e2e_integration.py::TestE2EIntegration::test_01_gateway_health_check -v
 
 # Con salida detallada
-python -m pytest tests/e2e/ -v -s
+python -m pytest -c tests/pytest.ini tests/e2e/ -v -s
 ```
 
 ---
@@ -71,25 +72,25 @@ Validan la **integración entre componentes** específicos:
 - Manejo de errores
 
 #### `test_gateway_user_api_connection.py`
-- Validación de proxying Gateway → User_API
+- Validación de proxying Gateway → Auth API
 - Transformación de requests
 - Health check del gateway
 - Servicio indisponible (503)
 
 **Requisitos:**
-- ✓ API Gateway corriendo (puede usar mocks para User_API)
+- ✓ API Gateway corriendo (puede usar mocks para Auth API)
 - ✓ Dependencias: `fastapi`, `httpx`, `pydantic`
 
 **Ejecutar:**
 ```bash
 # Todos los tests de integración
-python -m pytest tests/integration/ -v
+python -m pytest -c tests/pytest.ini tests/integration/ -v
 
 # Solo tests Frontend-Gateway
-python -m pytest tests/integration/test_frontend_gateway_connection.py -v
+python -m pytest -c tests/pytest.ini tests/integration/test_frontend_gateway_connection.py -v
 
-# Solo tests Gateway-User_API
-python -m pytest tests/integration/test_gateway_user_api_connection.py -v
+# Solo tests Gateway-Auth API
+python -m pytest -c tests/pytest.ini tests/integration/test_gateway_user_api_connection.py -v
 ```
 
 ---
@@ -131,16 +132,16 @@ Consistencia de variables de entorno:
 **Ejecutar:**
 ```bash
 # Todos los tests de validación
-python -m pytest tests/validation/ -v
+python -m pytest -c tests/pytest.ini tests/validation/ -v
 
 # Solo docker-compose sync
-python -m pytest tests/validation/test_docker_compose_sync.py -v
+python -m pytest -c tests/pytest.ini tests/validation/test_docker_compose_sync.py -v
 
 # Solo env consistency
-python -m pytest tests/validation/test_env_consistency.py -v
+python -m pytest -c tests/pytest.ini tests/validation/test_env_consistency.py -v
 
 # Solo notification validation
-python -m pytest tests/validation/test_notification_validation.py -v
+python -m pytest -c tests/pytest.ini tests/validation/test_notification_validation.py -v
 
 # Sin requerimientos de servicios corriendo
 python tests/validation/test_docker_compose_sync.py
@@ -174,7 +175,7 @@ Validan la **estructura de datos** sin dependencias externas:
 
 **Ejecutar:**
 ```bash
-pytest tests/validation/test_notification_validation.py -v
+pytest -c tests/pytest.ini tests/validation/test_notification_validation.py -v
 ```
 
 ### Notification Integration Tests
@@ -208,7 +209,7 @@ RABBITMQ_MANAGEMENT_URL=http://localhost:15672
 ```bash
 # Con docker-compose corriendo
 docker compose up -d notification-rabbitmq notification-producer
-pytest tests/integration/test_notification_integration.py -v
+pytest -c tests/pytest.ini tests/integration/test_notification_integration.py -v
 ```
 
 ### Notification E2E Tests
@@ -231,7 +232,7 @@ Validan **flujos completos** de notificación a través del Gateway:
 
 **Requisitos:**
 - ✓ Stack COMPLETO corriendo (docker compose up)
-- ✓ Frontend, Gateway, Auth-API, Notification services
+- ✓ Frontend, Gateway, Auth API, Notification services
 
 **Variables de entorno:**
 ```
@@ -243,7 +244,7 @@ NOTIFICATION_PRODUCER_URL=http://localhost:8002
 ```bash
 # Con docker-compose completo corriendo
 docker compose up -d
-pytest tests/e2e/test_notification_e2e.py -v
+pytest -c tests/pytest.ini tests/e2e/test_notification_e2e.py -v
 ```
 
 ---
@@ -253,7 +254,7 @@ pytest tests/e2e/test_notification_e2e.py -v
 | Aspecto | E2E | Integration | Validation | Notification |
 |---------|-----|-------------|-----------|--------------|
 | **Alcance** | Sistema completo | Componentes específicos | Configuración estática | Módulo notificaciones |
-| **Servicios requeridos** | ✓ Todos (Frontend, Gateway, User_API, DB) | ~ Algunos (con mocks) | ✗ Ninguno | ~ Algunos (RabbitMQ, Producer) |
+| **Servicios requeridos** | ✓ Todos (Frontend, Gateway, Auth API, DB) | ~ Algunos (con mocks) | ✗ Ninguno | ~ Algunos (RabbitMQ, Producer) |
 | **Duración** | 📊 Lenta (~30-60 seg) | 📊 Media (~10-20 seg) | 📊 Rápida (<5 seg) | 📊 Media-Rápida (~5-15 seg) |
 | **Casos de uso** | Validación final pre-deploy | Desarrollo de features | CI/CD pipeline | Testing de notificaciones |
 | **Ejecutar cada** | Antes de push a main | Cambios en API Gateway | Commit a rama develop | Cambios en notificaciones |
@@ -265,43 +266,43 @@ pytest tests/e2e/test_notification_e2e.py -v
 ### 🚀 En Desarrollo Local
 ```bash
 # Cambio en componente específico
-pytest tests/integration/ -v
+pytest -c tests/pytest.ini tests/integration/ -v
 
 # Cambio en docker-compose o .env
-pytest tests/validation/ -v
+pytest -c tests/pytest.ini tests/validation/ -v
 
 # Cambios en notificaciones (sin stack completo)
-pytest tests/validation/test_notification_validation.py -v
+pytest -c tests/pytest.ini tests/validation/test_notification_validation.py -v
 
 # Cambios en integración de notificaciones (con servicios)
-pytest tests/integration/test_notification_integration.py -v
+pytest -c tests/pytest.ini tests/integration/test_notification_integration.py -v
 
 # Antes de commit
-pytest tests/integration/ tests/validation/ -v
+pytest -c tests/pytest.ini tests/integration/ tests/validation/ -v
 ```
 
 ### 🧪 Antes de Push a Main
 ```bash
 # Suite completa con todos los servicios corriendo
-pytest tests/ -v
+pytest -c tests/pytest.ini tests/ -v
 
 # O por categorías con output detallado
-pytest tests/e2e/ tests/integration/ tests/validation/ -v -s
+pytest -c tests/pytest.ini tests/e2e/ tests/integration/ tests/validation/ -v -s
 
 # Solo tests de notificación completos
-pytest tests/validation/test_notification_validation.py tests/integration/test_notification_integration.py tests/e2e/test_notification_e2e.py -v
+pytest -c tests/pytest.ini tests/validation/test_notification_validation.py tests/integration/test_notification_integration.py tests/e2e/test_notification_e2e.py -v
 ```
 
 ### 🔄 En CI/CD Pipeline
 ```bash
 # Rápido: solo validación de configuración
-pytest tests/validation/ --tb=short
+pytest -c tests/pytest.ini tests/validation/ --tb=short
 
 # Con servicios: validación + integración
-pytest tests/validation/ tests/integration/test_notification_integration.py --tb=short
+pytest -c tests/pytest.ini tests/validation/ tests/integration/test_notification_integration.py --tb=short
 
 # Completo: si hay servicios en contenedores
-pytest tests/ --tb=short -q
+pytest -c tests/pytest.ini tests/ --tb=short -q
 ```
 
 ---
@@ -323,37 +324,37 @@ pip install -r requirements-test.txt
 ### Ejecutar tests con diferentes niveles de verbose
 ```bash
 # Minimal output
-pytest tests/ -q
+pytest -c tests/pytest.ini tests/ -q
 
 # Normal output
-pytest tests/ -v
+pytest -c tests/pytest.ini tests/ -v
 
 # Detailed output con prints
-pytest tests/ -v -s
+pytest -c tests/pytest.ini tests/ -v -s
 
 # Mostrar variables locales en fallos
-pytest tests/ -v --tb=long
+pytest -c tests/pytest.ini tests/ -v --tb=long
 ```
 
 ### Ejecutar tests que contengan un patrón
 ```bash
 # Tests que contengan "health"
-pytest tests/ -k health -v
+pytest -c tests/pytest.ini tests/ -k health -v
 
 # Tests que NO contengan "e2e"
-pytest tests/ -k "not e2e" -v
+pytest -c tests/pytest.ini tests/ -k "not e2e" -v
 ```
 
 ### Ejecutar tests de una clase específica
 ```bash
-pytest tests/e2e/test_e2e_integration.py::TestE2EIntegration -v
+pytest -c tests/pytest.ini tests/e2e/test_e2e_integration.py::TestE2EIntegration -v
 
-pytest tests/integration/test_gateway_user_api_connection.py::GatewayUserApiConnectionTests -v
+pytest -c tests/pytest.ini tests/integration/test_gateway_user_api_connection.py::GatewayUserApiConnectionTests -v
 ```
 
 ### Ejecutar un test específico
 ```bash
-pytest tests/e2e/test_e2e_integration.py::TestE2EIntegration::test_01_gateway_health_check -v
+pytest -c tests/pytest.ini tests/e2e/test_e2e_integration.py::TestE2EIntegration::test_01_gateway_health_check -v
 ```
 
 ---
@@ -420,7 +421,7 @@ docker compose ps
 ```bash
 # Solución: Ejecutar desde raíz del proyecto
 cd /ruta/al/proyecto
-python -m pytest tests/
+python -m pytest -c tests/pytest.ini tests/
 ```
 
 ### ❌ Error: "YAML parsing error"
@@ -437,7 +438,7 @@ yamllint docker-compose.yml
 **Problema:** Servicios lentos o saturados
 ```bash
 # Ejecutar con verbose para ver dónde se bloquea
-pytest tests/e2e/ -v -s
+pytest -c tests/pytest.ini tests/e2e/ -v -s
 
 # Aumentar timeout (en el test code)
 timeout=30  # segundos

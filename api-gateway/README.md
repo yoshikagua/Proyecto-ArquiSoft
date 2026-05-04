@@ -19,8 +19,8 @@ Variables principales:
 
 - `GATEWAY_PORT` (default `8000`)
 - `USER_API_URL` (default `http://localhost:3000`)
-- `METADATA_API_URL` (default `http://localhost:8000/storage` en local)
-- `FILES_API_URL` (default `http://localhost:8001` en local)
+- `METADATA_API_URL` (default `http://metadata-api:8000/storage` en Docker)
+- `FILES_API_URL` (default `http://files-api:8000` en Docker)
 - `FRONTEND_URL` (default `http://localhost:8080`)
 - `DEBUG` (`True` / `False`)
 

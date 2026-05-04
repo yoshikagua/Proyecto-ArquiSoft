@@ -1,6 +1,6 @@
 # 📧 Módulo de Notificaciones por Email – KuisiScore
 
-Sistema asincrónico de notificaciones por email usando **RabbitMQ** como broker de mensajes y **SendGrid** como proveedor SMTP.
+Sistema asincrónico de notificaciones por email usando **RabbitMQ** como broker de mensajes y **SendGrid** como proveedor SMTP. El módulo se integra en el stack raíz del proyecto y también puede ejecutarse de forma aislada desde este directorio.
 
 ## 👥 Equipo
 
@@ -72,10 +72,11 @@ Sistema asincrónico de notificaciones por email usando **RabbitMQ** como broker
 
 ### Pasos
 
-1. **Clonar / estar en rama notification**
+1. **Usar el stack integrado o el stack aislado**
 	 ```bash
-	 git checkout notification
 	 cd Proyecto-ArquiSoft
+	 # Opcional: para levantar solo el módulo
+	 cd Notification
 	 ```
 
 2. **Configurar variables de entorno**

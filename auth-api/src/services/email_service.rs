@@ -1,23 +1,20 @@
 use crate::dto::email_request::EmailRequest;
 use crate::errors::email_error::EmailError;
 use crate::config::email_config::EmailConfig;
- use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
+use reqwest::Client;
+use serde_json::json;
 
 #[derive(Debug, Clone)]
 pub struct EmailService {
-    mailer: AsyncSmtpTransport<Tokio1Executor>,
-    from: String,
+    client: Client,
+    notification_url: String,
 }
 
 impl EmailService {
     pub fn new(config: EmailConfig) -> Result<Self, EmailError> {
-        // Mailhog solo soporta SMTP plano (sin TLS)
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&config.smtp_host)
-            .port(config.smtp_port)
-            .build();
         Ok(Self {
-            mailer,
-            from: config.from,
+            client: Client::new(),
+            notification_url: config.notification_url,
         })
     }
 
@@ -25,17 +22,27 @@ impl EmailService {
         &self,
         request: EmailRequest,
     ) -> Result<(), EmailError> {
-        let email = Message::builder()
-            .from(self.from.parse().map_err(|_| EmailError::ConfigError)?)
-            .to(request.to.parse().map_err(|_| EmailError::ConfigError)?)
-            .subject(request.subject)
-            .body(request.body)
-            .map_err(|_| EmailError::ConfigError)?;
+        let payload = json!({
+            "email": request.to,
+            "asunto": request.subject,
+            "mensaje": request.body
+        });
 
-        self.mailer.send(email).await.map_err(|e| {
-            tracing::error!("Error enviando email: {:?}", e);
-            EmailError::SendError
-        })?;
+        let response = self.client
+            .post(&self.notification_url)
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| {
+                tracing::error!("Error conectando con el servicio de notificaciones: {:?}", e);
+                EmailError::SendError
+            })?;
+
+        if !response.status().is_success() {
+            tracing::error!("El servicio de notificaciones respondió con error: {:?}", response.status());
+            return Err(EmailError::SendError);
+        }
+
         Ok(())
     }
 }

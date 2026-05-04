@@ -34,16 +34,12 @@ services:
     environment:
       DATABASE_URL: postgres://authuser:authpass@postgres:5432/auth_db
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
-      MAIL_SMTP_HOST: mailhog
-      MAIL_SMTP_PORT: 1025
-      MAIL_FROM: noreply@localhost
+      NOTIFICATION_URL: http://notification-producer:8000
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
-      mailhog:
-        condition: service_started
     networks:
       - main-network
 

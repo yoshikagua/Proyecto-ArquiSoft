@@ -94,9 +94,7 @@ async fn main() -> anyhow::Result<()> {
 
     // ---- SERVICES ----
     let email_config = crate::config::email_config::EmailConfig {
-        smtp_host: env::var("MAIL_SMTP_HOST").unwrap_or_else(|_| "localhost".to_string()),
-        smtp_port: env::var("MAIL_SMTP_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(1025),
-        from: env::var("MAIL_FROM").unwrap_or_else(|_| "noreply@localhost".to_string()),
+        notification_url: env::var("NOTIFICATION_URL").unwrap_or_else(|_| "http://notification-producer:8000".to_string()),
     };
     let email_service = EmailService::new(email_config).expect("Error configurando EmailService");
 

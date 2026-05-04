@@ -13,8 +13,8 @@ Servicios:
 - `frontend` (`:8080`)
 - `api-gateway` (`:8000`)
 - `user-api` (`:3000`)
-- `metadata-api` (`:8000` interno)
-- `files-api` (`:8000` interno)
+- `metadata-api` (interno, expuesto vía gateway)
+- `files-api` (interno, expuesto vía gateway)
 - `postgres` (`:5432`) - Auth database
 - `mongo` (`:27017`)
 - `minio` (`:9000`, `:9001`)
@@ -85,8 +85,6 @@ docker compose down
 - Frontend: http://localhost:8080
 - Gateway: http://localhost:8000
 - Auth directo: http://localhost:3000
-- Metadata GraphQL directo: http://localhost:8000/storage
-- Files API directo: http://localhost:8000
 - Storage vía gateway: http://localhost:8000/api/storage
 - Notification Producer: http://localhost:8002
 - RabbitMQ Management: http://localhost:15672 (guest/guest)
@@ -120,7 +118,7 @@ docker compose down -v
 ```
 
 - Para notifications: Verifica RabbitMQ en `http://localhost:15672` y Producer en `http://localhost:8002/status`
-- Para testing: Suite completa en `/tests/` incluye 35+ tests (validation, integration, e2e)
+- Para testing: Suite completa en `/tests/` se ejecuta con `python -m pytest -c tests/pytest.ini tests/ -q`
 
 ---
 

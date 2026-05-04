@@ -100,6 +100,7 @@ class EmailProcessor
     private function sendEmail($to, $message, $subject)
     {
         $mail = new PHPMailer(true);
+        $mail->CharSet = 'UTF-8';
 
         $mail->isSMTP();
         $mail->Host = Config::SENDGRID_HOST;
