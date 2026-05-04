@@ -35,7 +35,7 @@ Microservicio de autenticación y gestión de usuarios de KuisiScore.
 ## Dependencias externas
 
 - PostgreSQL
-- MailHog (en desarrollo para flujo de correos)
+- Notification Service (vía HTTP para el flujo de correos)
 
 ---
 
@@ -60,11 +60,9 @@ cargo run
 
 Variables esperadas (ver `.env.example`):
 
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `MAIL_SMTP_HOST`
-- `MAIL_SMTP_PORT`
-- `MAIL_FROM`
+- `DATABASE_URL`: URL de conexión a PostgreSQL
+- `JWT_SECRET`: Llave para firma de tokens
+- `NOTIFICATION_URL`: URL del productor de notificaciones (ej: `http://notification-producer:8000`)
 
 ---
 

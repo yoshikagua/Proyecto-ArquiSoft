@@ -31,8 +31,8 @@ La solución está organizada en microservicios:
 - `auth-api/`: Rust + Axum (autenticación y usuarios)
 - `metadata-api/`: FastAPI + Strawberry GraphQL (metadatos de partituras)
 - `files-api/`: FastAPI (archivos binarios de partituras)
-- `Notification/`: PHP con RabbitMQ (notificaciones vía email)
-- Infraestructura: PostgreSQL (auth + notifications), MongoDB, RabbitMQ, MinIO y MailHog
+- `Notification/`: PHP con RabbitMQ y SendGrid (notificaciones asíncronas vía email)
+- Infraestructura: PostgreSQL (auth + notifications), MongoDB, RabbitMQ, MinIO, SendGrid y MailHog (opcional para debug)
 
 Flujo principal:
 
@@ -132,11 +132,10 @@ python -m pytest -c tests/pytest.ini tests/e2e/ -q
 
 ## 📌 Estado actual
 
-- ✓ Stack Docker completo funcional
+- ✓ Stack Docker completo funcional (reconstruido y validado)
 - ✓ Integración frontend-gateway-auth-storage operativa
-- ✓ Módulo de notificaciones integrado (PHP + RabbitMQ)
-- ✓ Recuperación de contraseña operativa vía gateway
-- ✓ Notificaciones de email para signup, password recovery, y eventos de música
-- ✓ Perfil y catálogo conectados al backend
-- ✓ Suite de pruebas completa validada con contenedores levantados
-- ✓ Tests de notificación integrados en categorías de validation/integration/e2e
+- ✓ Módulo de notificaciones integrado y desacoplado (PHP + RabbitMQ)
+- ✓ Recuperación de contraseña operativa vía flujo asíncrono con SendGrid
+- ✓ Soporte completo para caracteres especiales (UTF-8) en todo el flujo de emails
+- ✓ Suite de pruebas completa validada con contenedores levantados (35+ tests de notificación)
+- ✓ Perfil y catálogo conectados al backend asíncrono

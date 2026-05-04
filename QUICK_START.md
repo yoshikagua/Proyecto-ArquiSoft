@@ -7,6 +7,7 @@ Guía corta para levantar y validar el sistema completo del proyecto.
 ## 1) Requisitos
 
 - Docker Desktop (con Docker Compose)
+- Archivo `.env` configurado con `SENDGRID_API_KEY` válida.
 - Puertos libres: `3000`, `5432`, `5433`, `5672`, `8000`, `8001`, `8002`, `8025`, `8080`, `9001`, `15672`, `27017`
 
 ---
@@ -114,10 +115,11 @@ docker compose down -v
 ## Notas
 
 - El frontend consume auth y storage por gateway (`/api/auth/*`, `/api/storage`).
-- Flujos de recuperación de contraseña (`recover`, `verify-recovery-code`, `reset-password`) están activos.
+- Flujos de recuperación de contraseña (`recover`, `verify-recovery-code`, `reset-password`) están activos y son asíncronos.
 - Perfil de usuario (`/api/auth/me`, `PUT /api/auth/users/{id}`) está integrado.
 - Gestión de usuarios (`GET /api/auth/users`) requiere token válido y permisos del auth-api.
-- Notificaciones de email se envían automáticamente en signup y password recovery.
+- Notificaciones de email se envían mediante un microservicio dedicado (PHP + RabbitMQ + SendGrid) tras llamadas HTTP desde el Auth API.
+- Se soporta UTF-8 (tildes, eñes) en todo el ciclo de vida del correo.
 - Si ejecutas `pytest` desde la raíz, usa `-c tests/pytest.ini` para cargar los markers del directorio `tests/`.
 - RabbitMQ gestiona la cola de mensajes; ver consola en `http://localhost:15672`.
 - Para detalles técnicos, ver:
