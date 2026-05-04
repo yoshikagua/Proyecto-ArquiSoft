@@ -12,11 +12,15 @@ tests/
 ├── e2e/                          # End-to-End Tests
 │   ├── __init__.py
 │   ├── test_e2e_integration.py
-│   └── test_notification_e2e.py  # ✨ Notification E2E tests (15+ tests)
+│   ├── test_notification_e2e.py  # ✨ Notification E2E tests (15+ tests)
+│   └── test_utf8_e2e_flow.py     # 🔤 UTF-8 & Special Characters flow
 ├── integration/                  # Integration Tests
 │   ├── __init__.py
 │   ├── test_frontend_gateway_connection.py
 │   ├── test_gateway_user_api_connection.py
+│   ├── test_gateway_storage_connection.py   # 📦 Gateway -> Storage integration
+│   ├── test_gateway_notifications.py        # 🔔 Gateway -> Notification integration
+│   ├── test_notification_persistence.py      # 💾 DB Persistence verification
 │   └── test_notification_integration.py  # ✨ Notification Integration (12+ tests)
 └── validation/                   # Validation Tests
     ├── __init__.py
@@ -39,6 +43,7 @@ Validan el **flujo completo** del sistema con todos los servicios corriendo:
 - Signup con transformación de payload
 - Validación de headers CORS
 - Manejo de errores (conexión fallida, servicio no disponible)
+- **Flujo UTF-8**: Validación de caracteres especiales (ñ, á, etc.) en registro y notificaciones.
 
 **Requisitos:** 
 - ✓ Frontend corriendo en `http://localhost:8080`
@@ -74,8 +79,21 @@ Validan la **integración entre componentes** específicos:
 #### `test_gateway_user_api_connection.py`
 - Validación de proxying Gateway → Auth API
 - Transformación de requests
-- Health check del gateway
+- Health check del gateway (dinámico)
 - Servicio indisponible (503)
+
+#### `test_gateway_storage_connection.py`
+- Validación de enrutamiento Gateway → Metadata API (GraphQL)
+- Validación de enrutamiento Gateway → Files API (Upload/Delete)
+- Health check dinámico de servicios de almacenamiento
+
+#### `test_gateway_notifications.py`
+- Validación de enrutamiento Gateway → Notification Producer
+- Health check del servicio de notificaciones en el gateway
+
+#### `test_notification_persistence.py`
+- Verificación de registros en `emails_db` tras envíos exitosos
+- Validación de estados de envío (success/failed) en base de datos
 
 **Requisitos:**
 - ✓ API Gateway corriendo (puede usar mocks para Auth API)
