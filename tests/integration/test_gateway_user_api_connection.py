@@ -29,13 +29,16 @@ class _FakeAsyncClient:
     next_response = _FakeResponse(200, {"ok": True})
     should_raise = False
 
+    def __init__(self, *args, **kwargs):
+        pass
+
     async def __aenter__(self):
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
         return False
 
-    async def post(self, url, json, timeout):
+    async def post(self, url, json=None, timeout=None):
         _FakeAsyncClient.last_call = {
             "url": url,
             "json": json,
@@ -62,7 +65,7 @@ class GatewayUserApiConnectionTests(unittest.TestCase):
         self.assertIn("frontend", body)
 
     def test_login_proxies_to_auth_login_path(self):
-        with patch("app.routers.auth.httpx.AsyncClient", _FakeAsyncClient):
+        with patch.object(httpx, "AsyncClient", _FakeAsyncClient):
             response = self.client.post(
                 "/api/auth/login",
                 json={"email": "user@test.com", "password": "123456"},
@@ -77,7 +80,7 @@ class GatewayUserApiConnectionTests(unittest.TestCase):
         )
 
     def test_signup_maps_name_to_first_and_last_name(self):
-        with patch("app.routers.auth.httpx.AsyncClient", _FakeAsyncClient):
+        with patch.object(httpx, "AsyncClient", _FakeAsyncClient):
             response = self.client.post(
                 "/api/auth/signup",
                 json={
@@ -101,7 +104,7 @@ class GatewayUserApiConnectionTests(unittest.TestCase):
         )
 
     def test_signup_uses_explicit_first_last_name(self):
-        with patch("app.routers.auth.httpx.AsyncClient", _FakeAsyncClient):
+        with patch.object(httpx, "AsyncClient", _FakeAsyncClient):
             response = self.client.post(
                 "/api/auth/signup",
                 json={
@@ -127,7 +130,7 @@ class GatewayUserApiConnectionTests(unittest.TestCase):
 
     def test_login_returns_503_when_user_api_unreachable(self):
         _FakeAsyncClient.should_raise = True
-        with patch("app.routers.auth.httpx.AsyncClient", _FakeAsyncClient):
+        with patch.object(httpx, "AsyncClient", _FakeAsyncClient):
             response = self.client.post(
                 "/api/auth/login",
                 json={"email": "user@test.com", "password": "123456"},

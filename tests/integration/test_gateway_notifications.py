@@ -26,6 +26,9 @@ class _FakeAsyncClient:
     next_response = _FakeResponse(200, {"status": "ok"})
     should_raise = False
 
+    def __init__(self, *args, **kwargs):
+        pass
+
     async def __aenter__(self): return self
     async def __aexit__(self, exc_type, exc, tb): return False
 
@@ -47,7 +50,7 @@ class GatewayNotificationsConnectionTests(unittest.TestCase):
 
     def test_notification_health_proxy(self):
         """Valida que el gateway consulte la salud del productor de notificaciones"""
-        with patch("app.routers.notifications.httpx.AsyncClient", _FakeAsyncClient):
+        with patch.object(httpx, "AsyncClient", _FakeAsyncClient):
             response = self.client.get("/api/notifications/health")
             
         self.assertEqual(response.status_code, 200)
@@ -57,7 +60,7 @@ class GatewayNotificationsConnectionTests(unittest.TestCase):
     def test_notification_send_proxy(self):
         """Valida que el envío de notificaciones se redirija correctamente"""
         payload = {"email": "test@test.com", "asunto": "Hola", "mensaje": "Mundo"}
-        with patch("app.routers.notifications.httpx.AsyncClient", _FakeAsyncClient):
+        with patch.object(httpx, "AsyncClient", _FakeAsyncClient):
             response = self.client.post("/api/notifications/send", json=payload)
             
         self.assertEqual(response.status_code, 200)

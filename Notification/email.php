@@ -87,8 +87,8 @@ class EmailProcessor
             $this->logger->info("Enviado a $email");
             $msg->ack();
 
-        } catch (Exception $e) {
-            $this->logger->error($e->getMessage());
+        } catch (\Exception $e) {
+            $this->logger->error("Error procesando mensaje: " . $e->getMessage());
 
             // Guardar error
             $this->saveLog($email, $asunto, $mensaje, 'failed', $e->getMessage());
@@ -123,6 +123,7 @@ class EmailProcessor
     private function saveLog($email, $asunto, $mensaje, $estado, $error = null)
     {
         try {
+            $this->logger->info("Guardando log en DB para $email...");
             $stmt = $this->db->prepare("
                 INSERT INTO emails_enviados 
                 (email_destino, asunto, mensaje, estado, error)
@@ -130,9 +131,10 @@ class EmailProcessor
             ");
 
             $stmt->execute([$email, $asunto, $mensaje, $estado, $error]);
+            $this->logger->info("Log guardado con éxito.");
 
-        } catch (Exception $e) {
-            $this->logger->error("DB error: " . $e->getMessage());
+        } catch (\Exception $e) {
+            $this->logger->error("DB error crítico: " . $e->getMessage());
         }
     }
 }

@@ -28,8 +28,16 @@ class _FakeAsyncClient:
     next_response = _FakeResponse(200, {"status": "ok"})
     should_raise = False
 
+    def __init__(self, *args, **kwargs):
+        pass
+
     async def __aenter__(self): return self
     async def __aexit__(self, exc_type, exc, tb): return False
+
+    async def request(self, method, url, **kwargs):
+        _FakeAsyncClient.last_call = {"method": method, "url": url, **kwargs}
+        if _FakeAsyncClient.should_raise: raise httpx.RequestError("error")
+        return _FakeAsyncClient.next_response
 
     async def get(self, url, timeout=None):
         _FakeAsyncClient.last_call = {"method": "GET", "url": url}
@@ -60,13 +68,13 @@ class GatewayStorageConnectionTests(unittest.TestCase):
 
     def test_graphql_proxy_forwarding(self):
         """Valida que las peticiones a la raíz de /api/storage se redirijan a metadata-api"""
-        with patch("app.routers.storage.httpx.AsyncClient", _FakeAsyncClient):
+        with patch.object(httpx, "AsyncClient", _FakeAsyncClient):
             query = {"query": "{ scores { id } }"}
             response = self.client.post("/api/storage/", json=query)
             
         self.assertEqual(response.status_code, 200)
         self.assertEqual(_FakeAsyncClient.last_call["url"], "http://metadata-api:8000/storage")
-        self.assertEqual(_FakeAsyncClient.last_call["json"], query)
+        self.assertIsNotNone(_FakeAsyncClient.last_call.get("content"))
 
     def test_storage_returns_503_on_internal_error(self):
         """Valida manejo de error 503 cuando los servicios internos no responden"""

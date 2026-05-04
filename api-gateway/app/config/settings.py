@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     user_api_url: str = "http://auth-api:3000" # Asumiendo el contenedor de Rust
     metadata_api_url: str = "http://metadata-api:8000/storage"
     files_api_url: str = "http://files-api:8000" # Ajustado al puerto interno común
+    notification_url: str = "http://notification-producer:8000"
     frontend_url: str = "http://localhost:8080"
     
     # Puerto del Gateway
