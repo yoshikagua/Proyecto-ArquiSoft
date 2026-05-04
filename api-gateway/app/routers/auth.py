@@ -227,7 +227,7 @@ async def update_user(user_id: int, payload: UpdateUserRequest, request: Request
                 detail=_extract_upstream_error_message(response, "No se pudo actualizar el perfil"),
             )
 
-        if response.status_code == 204:
+        if response.status_code == 204 or not response.content:
             return {"message": "Perfil actualizado"}
 
         return response.json()

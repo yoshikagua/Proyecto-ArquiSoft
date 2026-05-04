@@ -10,16 +10,17 @@
  * - Redirige a /login si el usuario no está autenticado al hacer clic en logout
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Music, Upload, BookOpen, Menu, X, LogOut, ChevronDown, User, Heart, FileText } from "lucide-react";
+import { Music, Upload, BookOpen, Menu, X, LogOut, ChevronDown, User, Heart, FileText, CreditCard } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { API_BASE_URL } from "@/lib/apiClient";
 
 /** Definición de cada enlace de navegación */
 interface NavItem {
     label: string;
     path: string;
-    icon: React.ReactNode;
+    icon: ReactNode;
 }
 
 const Navbar = () => {
@@ -48,6 +49,7 @@ const Navbar = () => {
     const navItems: NavItem[] = [
         { label: "Partituras", path: "/partituras", icon: <BookOpen className="h-4 w-4" /> },
         { label: "Instrumentos", path: "/instrumentos", icon: <Music className="h-4 w-4" /> },
+        { label: "Donaciones", path: "/api/payments", icon: <CreditCard className="h-4 w-4" /> },
         ...(user ? [{ label: "Subir Partitura", path: "/subir-partitura", icon: <Upload className="h-4 w-4" /> }] : []),
     ];
 
@@ -82,7 +84,13 @@ const Navbar = () => {
                     {navItems.map((item) => (
                         <button
                             key={item.path}
-                            onClick={() => navigate(item.path)}
+                            onClick={() => {
+                                if (item.path.startsWith("/api/")) {
+                                    window.location.href = `${API_BASE_URL}${item.path}`;
+                                } else {
+                                    navigate(item.path);
+                                }
+                            }}
                             className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all ${isActive(item.path)
                                 ? "bg-primary text-primary-foreground shadow-sm"
                                 : "text-foreground hover:bg-secondary/15 hover:text-primary"
@@ -127,21 +135,21 @@ const Navbar = () => {
                                         { tab: "info", label: "Mi Perfil", icon: <User className="h-4 w-4" /> },
                                         { tab: "partituras", label: "Mis Partituras", icon: <FileText className="h-4 w-4" /> },
                                         { tab: "favoritos", label: "Mis Favoritos", icon: <Heart className="h-4 w-4" /> },
-                                    ].map((item) => (
+                                    ].map((subItem) => (
                                         <button
-                                            key={item.tab}
+                                            key={subItem.tab}
                                             onClick={() => {
                                                 if (location.pathname === "/perfil") {
                                                     // Already on profile: update search params to switch tab
-                                                    navigate(`/perfil?tab=${item.tab}`, { replace: true });
+                                                    navigate(`/perfil?tab=${subItem.tab}`, { replace: true });
                                                 } else {
-                                                    navigate(`/perfil?tab=${item.tab}`);
+                                                    navigate(`/perfil?tab=${subItem.tab}`);
                                                 }
                                                 setUserMenuOpen(false);
                                             }}
                                             className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-secondary/10 transition-colors"
                                         >
-                                            {item.icon} {item.label}
+                                            {subItem.icon} {subItem.label}
                                         </button>
                                     ))}
                                     <div className="border-t border-secondary/10 mt-1" />
@@ -212,7 +220,11 @@ const Navbar = () => {
                             <button
                                 key={item.path}
                                 onClick={() => {
-                                    navigate(item.path);
+                                    if (item.path.startsWith("/api/")) {
+                                        window.location.href = `${API_BASE_URL}${item.path}`;
+                                    } else {
+                                        navigate(item.path);
+                                    }
                                     setMobileOpen(false);
                                 }}
                                 className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all ${isActive(item.path)

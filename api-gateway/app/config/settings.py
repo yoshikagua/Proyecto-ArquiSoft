@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     metadata_api_url: str = "http://metadata-api:8000/storage"
     files_api_url: str = "http://files-api:8000" # Ajustado al puerto interno común
     notification_url: str = "http://notification-producer:8000"
+    payments_url: str = "http://payments_app:3000"
     frontend_url: str = "http://localhost:8080"
     
     # Puerto del Gateway

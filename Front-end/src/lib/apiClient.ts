@@ -219,12 +219,18 @@ async function fetchApi<T>(
       );
     }
 
-    // Si la respuesta es 204 No Content, retornar un objeto vacío
-    if (response.status === 204) {
+    // Si la respuesta es 204 No Content o no tiene cuerpo, retornar un objeto vacío
+    const contentType = response.headers.get("content-type");
+    if (response.status === 204 || !contentType || contentType.indexOf("application/json") === -1) {
       return {} as T;
     }
 
-    return await response.json();
+    try {
+      return await response.json();
+    } catch (e) {
+      console.warn("Error parseando JSON de respuesta exitosa:", e);
+      return {} as T;
+    }
   } catch (error) {
     // Si es un ApiClientError, re-lanzarlo
     if (error instanceof ApiClientError) {

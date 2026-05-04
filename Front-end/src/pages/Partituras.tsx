@@ -10,7 +10,7 @@
  */
 
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Filter, BookOpen, ThumbsUp, Download, Star, X } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { usePartituras } from "@/context/PartiturasContext";
@@ -22,15 +22,24 @@ const Partituras = () => {
     const { partituras: PARTITURAS_DATA } = usePartituras();
 
     // ── Estado de filtros ──
+    const [searchParams] = useSearchParams();
     /** Texto de búsqueda ingresado por el usuario */
     const [busqueda, setBusqueda] = useState("");
     /** Género seleccionado como filtro */
     const [generoActivo, setGeneroActivo] = useState("Todos");
     /** Instrumento seleccionado como filtro (texto libre) */
-    const [instrumentoFiltro, setInstrumentoFiltro] = useState("");
+    const [instrumentoFiltro, setInstrumentoFiltro] = useState(searchParams.get("instrumento") || "");
     /** Controla si el panel de filtros avanzados está visible */
-    const [mostrarFiltros, setMostrarFiltros] = useState(false);
+    const [mostrarFiltros, setMostrarFiltros] = useState(!!searchParams.get("instrumento"));
     const [generosDisponibles, setGenerosDisponibles] = useState<string[]>(["Todos"]);
+
+    useEffect(() => {
+        const instrumento = searchParams.get("instrumento");
+        if (instrumento) {
+            setInstrumentoFiltro(instrumento);
+            setMostrarFiltros(true);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         const loadCatalog = async () => {

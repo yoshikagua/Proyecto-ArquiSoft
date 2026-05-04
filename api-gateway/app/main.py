@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config.settings import settings
-from .routers import auth, storage, notifications
+from .routers import auth, storage, notifications, payments
 
 # Crear aplicación FastAPI
 app = FastAPI(
@@ -14,7 +14,7 @@ app = FastAPI(
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, especificar los orígenes permitidos
+    allow_origins=[settings.frontend_url, "http://localhost:8080", "http://127.0.0.1:8080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,6 +24,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(storage.router)
 app.include_router(notifications.router)
+app.include_router(payments.router, prefix="/api")
 
 
 @app.get("/")
