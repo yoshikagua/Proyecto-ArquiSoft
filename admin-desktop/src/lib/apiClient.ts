@@ -1,4 +1,15 @@
+/**
+ * apiClient.ts (Versión Escritorio / Admin)
+ * Cliente HTTP centralizado para la API del gateway.
+ * * Optimizado para administradores: incluye login, gestión de usuarios, 
+ * y control total del almacenamiento (Storage), omitiendo registro y recuperación.
+ */
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// ==========================================
+// INTERFACES
+// ==========================================
 
 export interface LoginRequest {
   email: string;
@@ -14,9 +25,20 @@ export interface LoginResponse {
     email: string;
     first_name?: string;
     last_name?: string;
+    nombre?: string;
     role?: string;
     role_id?: number;
   };
+}
+
+export interface LogoutResponse {
+  message: string;
+}
+
+export interface HealthCheckResponse {
+  status: string;
+  user_api_url?: string;
+  frontend_url?: string;
 }
 
 export interface CurrentUserResponse {
@@ -57,6 +79,17 @@ export interface UploadScoreRequest {
   file: File;
 }
 
+export interface UpdateScoreRequest {
+  id: string;
+  title: string;
+  composer: string;
+  genre: string;
+  format_type: string;
+  year: number;
+  description?: string;
+  instruments?: string[];
+}
+
 export interface StorageScore {
   id: string;
   title: string;
@@ -95,6 +128,10 @@ export interface ApiError {
   status?: number;
 }
 
+// ==========================================
+// MANEJO DE ERRORES Y UTILIDADES
+// ==========================================
+
 export class ApiClientError extends Error {
   constructor(
     message: string,
@@ -109,15 +146,23 @@ export class ApiClientError extends Error {
 async function handleErrorResponse(response: Response): Promise<ApiError> {
   try {
     const data = await response.json();
-    return { message: data.detail || data.message || "Error desconocido", status: response.status };
+    return {
+      message: data.detail || data.message || "Error desconocido",
+      status: response.status,
+    };
   } catch {
-    return { message: `Error ${response.status}: ${response.statusText}`, status: response.status };
+    return {
+      message: `Error ${response.status}: ${response.statusText}`,
+      status: response.status,
+    };
   }
 }
 
 function getAuthToken(): string | null {
   const token = localStorage.getItem("auth_token") || localStorage.getItem("access_token");
-  if (!token || token === "undefined" || token === "null") return null;
+  if (!token || token === "undefined" || token === "null") {
+    return null;
+  }
   return token;
 }
 
@@ -129,22 +174,33 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
   };
 
   const token = getAuthToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
 
   try {
     const response = await fetch(url, { ...options, headers });
+
     if (!response.ok) {
       const error = await handleErrorResponse(response);
       throw new ApiClientError(error.message || "Error en la solicitud", response.status, error);
     }
-    if (response.status === 204) return {} as T;
-    return await response.json();
+
+    const contentType = response.headers.get("content-type");
+    if (response.status === 204 || !contentType || contentType.indexOf("application/json") === -1) {
+      return {} as T;
+    }
+
+    try {
+      return await response.json();
+    } catch (e) {
+      console.warn("Error parseando JSON de respuesta exitosa:", e);
+      return {} as T;
+    }
   } catch (error) {
     if (error instanceof ApiClientError) throw error;
     if (error instanceof TypeError) {
-      throw new ApiClientError("Error de conexión: No se pudo alcanzar el servidor", 0, {
-        detail: (error as Error).message,
-      });
+      throw new ApiClientError("Error de conexión: No se pudo alcanzar el servidor", 0, { detail: (error as Error).message });
     }
     throw new ApiClientError("Error desconocido", 0, { detail: String(error) });
   }
@@ -157,9 +213,7 @@ async function fetchStorageGraphQL<TData>(
 ): Promise<TData> {
   const token = getAuthToken();
   if (requireAuth && !token) {
-    throw new ApiClientError("Debes iniciar sesión para realizar esta acción", 401, {
-      message: "No autenticado",
-    });
+    throw new ApiClientError("Debes iniciar sesión para realizar esta acción", 401, { message: "No autenticado" });
   }
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -178,13 +232,15 @@ async function fetchStorageGraphQL<TData>(
 
   const body = await response.json();
   if (Array.isArray(body.errors) && body.errors.length > 0) {
-    throw new ApiClientError(body.errors[0]?.message || "Error de GraphQL", 400, {
-      message: body.errors[0]?.message,
-    });
+    throw new ApiClientError(body.errors[0]?.message || "Error de GraphQL", 400, { message: body.errors[0]?.message });
   }
 
   return body.data as TData;
 }
+
+// ==========================================
+// API DE AUTENTICACIÓN (ADMIN)
+// ==========================================
 
 export const authApi = {
   login: async (request: LoginRequest): Promise<LoginResponse> => {
@@ -199,7 +255,11 @@ export const authApi = {
     };
   },
 
-  getCurrentUser: async (): Promise<CurrentUserResponse> => {
+  logout: async (): Promise<LogoutResponse> => {
+    return fetchApi<LogoutResponse>("/api/auth/logout", { method: "POST" });
+  },
+
+  getCurrentUser: async () => {
     return fetchApi<CurrentUserResponse>("/api/auth/me", { method: "GET" });
   },
 
@@ -215,7 +275,15 @@ export const authApi = {
       method: "GET",
     });
   },
+
+  health: async (): Promise<HealthCheckResponse> => {
+    return fetchApi<HealthCheckResponse>("/api/auth/health", { method: "GET" });
+  },
 };
+
+// ==========================================
+// API DE STORAGE (ADMIN)
+// ==========================================
 
 export const storageApi = {
   getScores: async (): Promise<StorageScore[]> => {
@@ -247,9 +315,7 @@ export const storageApi = {
     }>(
       `
       query GetScoreCatalog {
-        scoreGenres
-        scoreInstruments
-        scoreFormats
+        scoreGenres scoreInstruments scoreFormats
       }
       `,
       {},
@@ -264,159 +330,105 @@ export const storageApi = {
 
   uploadScore: async (request: UploadScoreRequest): Promise<StorageScore> => {
     const token = getAuthToken();
-    if (!token) {
-      throw new ApiClientError("Debes iniciar sesión para subir una partitura", 401, {
-        message: "No autenticado",
-      });
-    }
-
-    const operations = {
-      query: `
-        mutation UploadScore(
-          $title: String! $composer: String! $genre: String! $format_type: String!
-          $year: Int! $description: String! $instruments: [String!]! $file: Upload!
-        ) {
-          uploadScore(
-            title: $title composer: $composer genre: $genre formatType: $format_type
-            year: $year description: $description instruments: $instruments file: $file
-          ) {
-            id title composer genre format year uploadedBy fileUrl description
-            instruments likes downloads favorito liked
-            comentarios { id usuario avatar texto fecha }
-          }
-        }
-      `,
-      variables: {
-        title: request.title,
-        composer: request.composer,
-        genre: request.genre,
-        format_type: request.format_type,
-        year: request.year,
-        description: request.description || "",
-        instruments: request.instruments || [],
-        file: null,
-      },
-    };
+    if (!token) throw new ApiClientError("Sesión requerida", 401, { message: "No autenticado" });
 
     const formData = new FormData();
-    formData.append("operations", JSON.stringify(operations));
-    formData.append("map", JSON.stringify({ "0": ["variables.file"] }));
-    formData.append("0", request.file);
+    formData.append("title", request.title);
+    formData.append("composer", request.composer);
+    formData.append("genre", request.genre);
+    formData.append("format_type", request.format_type);
+    formData.append("year", request.year.toString());
+    formData.append("description", request.description || "");
+    formData.append("instruments", JSON.stringify(request.instruments || []));
+    formData.append("file", request.file);
 
-    const response = await fetch(`${API_BASE_URL}/api/storage`, {
+    const response = await fetch(`${API_BASE_URL}/api/storage/upload-score`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { "Authorization": `Bearer ${token}` }, // Fetch maneja automáticamente el Content-Type para FormData
       body: formData,
     });
 
     if (!response.ok) {
       const error = await handleErrorResponse(response);
-      throw new ApiClientError(error.message || "Error al subir partitura", response.status, error);
+      throw new ApiClientError(error.message || "Error al subir", response.status, error);
     }
 
-    const body = await response.json();
-    if (Array.isArray(body.errors) && body.errors.length > 0) {
-      throw new ApiClientError(body.errors[0]?.message || "Error de GraphQL al subir partitura", 400, {
-        message: body.errors[0]?.message,
-      });
-    }
-
-    return {
-      ...body.data.uploadScore,
-      uploaded_by: body.data.uploadScore.uploadedBy,
-      file_url: body.data.uploadScore.fileUrl,
-    } as StorageScore;
+    const result = await response.json();
+    const score = result.data.uploadScore;
+    return { ...score, uploaded_by: score.uploadedBy, file_url: score.fileUrl } as StorageScore;
   },
 
-  toggleLike: async (scoreId: string): Promise<StorageScore> => {
-    const data = await fetchStorageGraphQL<{ toggleLike: StorageScore }>(
+  updateScore: async (request: UpdateScoreRequest): Promise<StorageScore> => {
+    const data = await fetchStorageGraphQL<{ updateScore: StorageScore }>(
       `
-      mutation ToggleLike($id: String!) {
-        toggleLike(id: $id) {
+      mutation UpdateScore(
+        $id: String! $title: String! $composer: String! $genre: String!
+        $format: String! $year: Int! $description: String! $instruments: [String!]
+      ) {
+        updateScore(
+          id: $id title: $title composer: $composer genre: $genre
+          format: $format year: $year description: $description instruments: $instruments
+        ) {
           id title composer genre format year uploadedBy fileUrl description
           instruments likes downloads favorito liked
           comentarios { id usuario avatar texto fecha }
         }
       }
       `,
-      { id: scoreId },
+      {
+        id: request.id, title: request.title, composer: request.composer,
+        genre: request.genre, format: request.format_type, year: request.year,
+        description: request.description || "", instruments: request.instruments || [],
+      },
       true
     );
-    const s = data.toggleLike;
+
     return {
-      ...s,
-      uploaded_by: (s as unknown as { uploadedBy?: string }).uploadedBy || s.uploaded_by,
-      file_url: (s as unknown as { fileUrl?: string }).fileUrl || s.file_url,
+      ...data.updateScore,
+      uploaded_by: (data.updateScore as unknown as { uploadedBy?: string }).uploadedBy || data.updateScore.uploaded_by,
+      file_url: (data.updateScore as unknown as { fileUrl?: string }).fileUrl || data.updateScore.file_url,
     };
+  },
+
+  deleteScore: async (id: string): Promise<{ message?: string }> => {
+    return fetchApi<{ message?: string }>(`/api/storage/remove/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  // Aunque es una app admin, conservamos estas interacciones por si el admin necesita moderar o probar flujos
+  toggleLike: async (scoreId: string): Promise<StorageScore> => {
+    const data = await fetchStorageGraphQL<{ toggleLike: StorageScore }>(
+      `mutation ToggleLike($id: String!) { toggleLike(id: $id) { id likes liked } }`,
+      { id: scoreId }, true
+    );
+    return data.toggleLike;
   },
 
   toggleFavorite: async (scoreId: string): Promise<StorageScore> => {
     const data = await fetchStorageGraphQL<{ toggleFavorite: StorageScore }>(
-      `
-      mutation ToggleFavorite($id: String!) {
-        toggleFavorite(id: $id) {
-          id title composer genre format year uploadedBy fileUrl description
-          instruments likes downloads favorito liked
-          comentarios { id usuario avatar texto fecha }
-        }
-      }
-      `,
-      { id: scoreId },
-      true
+      `mutation ToggleFavorite($id: String!) { toggleFavorite(id: $id) { id favorito } }`,
+      { id: scoreId }, true
     );
-    const s = data.toggleFavorite;
-    return {
-      ...s,
-      uploaded_by: (s as unknown as { uploadedBy?: string }).uploadedBy || s.uploaded_by,
-      file_url: (s as unknown as { fileUrl?: string }).fileUrl || s.file_url,
-    };
+    return data.toggleFavorite;
   },
 
-  addComment: async (
-    scoreId: string,
-    payload: { texto: string; usuario: string; avatar: string }
-  ): Promise<StorageScore> => {
+  addComment: async (scoreId: string, payload: { texto: string; usuario: string; avatar: string }): Promise<StorageScore> => {
     const data = await fetchStorageGraphQL<{ addComment: StorageScore }>(
-      `
-      mutation AddComment($id: String!, $texto: String!, $usuario: String!, $avatar: String!) {
-        addComment(id: $id, texto: $texto, usuario: $usuario, avatar: $avatar) {
-          id title composer genre format year uploadedBy fileUrl description
-          instruments likes downloads favorito liked
-          comentarios { id usuario avatar texto fecha }
-        }
-      }
-      `,
-      { id: scoreId, texto: payload.texto, usuario: payload.usuario, avatar: payload.avatar },
-      true
+      `mutation AddComment($id: String!, $texto: String!, $usuario: String!, $avatar: String!) {
+        addComment(id: $id, texto: $texto, usuario: $usuario, avatar: $avatar) { id comentarios { id texto } }
+      }`,
+      { id: scoreId, ...payload }, true
     );
-    const s = data.addComment;
-    return {
-      ...s,
-      uploaded_by: (s as unknown as { uploadedBy?: string }).uploadedBy || s.uploaded_by,
-      file_url: (s as unknown as { fileUrl?: string }).fileUrl || s.file_url,
-    };
+    return data.addComment;
   },
 
   registerDownload: async (scoreId: string): Promise<StorageScore> => {
     const data = await fetchStorageGraphQL<{ registerDownload: StorageScore }>(
-      `
-      mutation RegisterDownload($id: String!) {
-        registerDownload(id: $id) {
-          id title composer genre format year uploadedBy fileUrl description
-          instruments likes downloads favorito liked
-          comentarios { id usuario avatar texto fecha }
-        }
-      }
-      `,
-      { id: scoreId },
-      false
+      `mutation RegisterDownload($id: String!) { registerDownload(id: $id) { id downloads } }`,
+      { id: scoreId }, false
     );
-    const s = data.registerDownload;
-    return {
-      ...s,
-      uploaded_by: (s as unknown as { uploadedBy?: string }).uploadedBy || s.uploaded_by,
-      file_url: (s as unknown as { fileUrl?: string }).fileUrl || s.file_url,
-    };
+    return data.registerDownload;
   },
 };
 
