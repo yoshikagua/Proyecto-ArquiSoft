@@ -14,7 +14,15 @@ app = FastAPI(
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:8080", "http://127.0.0.1:8080"],
+    allow_origins=[
+        settings.frontend_url,
+        "http://localhost:8080",       # Web frontend (Docker)
+        "http://127.0.0.1:8080",
+        "http://localhost:1420",       # Tauri desktop (Vite dev)
+        "http://127.0.0.1:1420",      # Tauri desktop (Vite dev)
+        "tauri://localhost",           # Tauri desktop (producción)
+        "https://tauri.localhost",     # Tauri desktop (producción alternativa)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
