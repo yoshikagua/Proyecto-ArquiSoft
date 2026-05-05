@@ -2,6 +2,8 @@
 
 ## Estructura de Tests
 
+Nota de portabilidad: `tests/conftest.py` normaliza los bundles de certificados TLS (`SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`) usando `certifi` para que los tests no dependan de variables del sistema o del entorno virtual activo.
+
 La suite de tests está organizada en tres categorías principales para facilitar la ejecución y mantenimiento:
 
 ```

@@ -190,40 +190,57 @@ class TestRabbitMQIntegration:
     def test_queue_message_count(self):
         """Test that messages are being enqueued"""
         try:
-            # Get initial count
-            response = requests.get(
-                f"{RABBITMQ_MANAGEMENT_URL}/api/queues/%2F/notificaciones_email",
-                auth=(RABBITMQ_USER, RABBITMQ_PASS),
-                timeout=5
-            )
-            
-            if response.status_code == 200:
-                initial_count = response.json().get("messages", 0)
-                
-                # Send a test message
-                payload = {
-                    "email": "counter@example.com",
-                    "asunto": "Counter test",
-                    "mensaje": "Test"
-                }
-                requests.post(
-                    NOTIFICATION_PRODUCER_URL,
-                    json=payload,
-                    timeout=5
-                )
-                
-                time.sleep(0.5)
-                
-                # Check new count
+            def _queue_metrics() -> dict:
                 response = requests.get(
                     f"{RABBITMQ_MANAGEMENT_URL}/api/queues/%2F/notificaciones_email",
                     auth=(RABBITMQ_USER, RABBITMQ_PASS),
-                    timeout=5
+                    timeout=5,
                 )
-                
-                new_count = response.json().get("messages", 0)
-                assert new_count >= initial_count, \
-                    "Messages not being added to queue"
+                response.raise_for_status()
+                payload = response.json()
+                message_stats = payload.get("message_stats") or {}
+                return {
+                    "messages": payload.get("messages", 0),
+                    "messages_ready": payload.get("messages_ready", 0),
+                    "messages_unacknowledged": payload.get("messages_unacknowledged", 0),
+                    "publish": message_stats.get("publish", 0),
+                }
+
+            # Get initial metrics
+            initial_metrics = _queue_metrics()
+
+            # Send a test message
+            payload = {
+                "email": "counter@example.com",
+                "asunto": "Counter test",
+                "mensaje": "Test"
+            }
+            producer_response = requests.post(
+                NOTIFICATION_PRODUCER_URL,
+                json=payload,
+                timeout=5
+            )
+            assert producer_response.status_code == 200
+
+            # Poll RabbitMQ management API because the worker may consume the
+            # message very quickly on fast or busy environments.
+            deadline = time.time() + 5
+            latest_metrics = initial_metrics
+            while time.time() < deadline:
+                latest_metrics = _queue_metrics()
+                if latest_metrics["publish"] > initial_metrics["publish"]:
+                    break
+                time.sleep(0.25)
+
+            assert latest_metrics["publish"] > initial_metrics["publish"], (
+                "RabbitMQ publish counter did not increase after sending a test "
+                "message"
+            )
+            assert (
+                latest_metrics["messages"]
+                + latest_metrics["messages_ready"]
+                + latest_metrics["messages_unacknowledged"]
+            ) >= 0
         except requests.exceptions.RequestException:
             pytest.skip("Cannot access RabbitMQ API")
     
