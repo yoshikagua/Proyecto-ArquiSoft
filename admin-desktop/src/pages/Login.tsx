@@ -3,7 +3,7 @@ import { Mail, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AuthLayout from "../layouts/AuthLayout";
 import { useAuth } from "../context/AuthContext";
-import { authApi, ApiClientError } from "../lib/apiClient";
+import { authApi, ApiClientError, API_BASE_URL } from "../lib/apiClient";
 
 const normalizeRole = (role?: string | number): "user" | "admin" | "superadmin" => {
   if (typeof role === "number") {
@@ -22,6 +22,18 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
+
+  const testConnection = async () => {
+    setDebugInfo("Probando...");
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`);
+      const text = await res.text();
+      setDebugInfo(`✅ OK (${res.status}): ${text}`);
+    } catch (e) {
+      setDebugInfo(`❌ Error: ${String(e)}`);
+    }
+  };
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -189,6 +201,20 @@ const Login = () => {
         <p className="text-center text-xs text-muted-foreground">
           Solo administradores y superadministradores pueden acceder a este panel.
         </p>
+      </div>
+
+      {/* DEBUG TEMPORAL - borrar después */}
+      <div className="mt-4 rounded-lg border border-yellow-400 bg-yellow-50 p-3 text-xs text-yellow-900 space-y-2">
+        <p className="font-bold">🔧 Debug Info</p>
+        <p>API URL: <code className="font-mono">{API_BASE_URL}</code></p>
+        <p>Origin: <code className="font-mono">{window.location.origin}</code></p>
+        <button
+          onClick={testConnection}
+          className="mt-1 rounded bg-yellow-400 px-3 py-1 font-semibold hover:bg-yellow-500"
+        >
+          Probar conexión
+        </button>
+        {debugInfo && <p className="mt-1 break-all font-mono">{debugInfo}</p>}
       </div>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
