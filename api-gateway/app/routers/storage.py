@@ -178,6 +178,43 @@ async def orchestrate_delete_score(score_id: str, request: Request):
 
 # --- SOLUCIÓN AL ERROR 404 DE GRAPHQL ---
 
+@router.get("")  # Maneja /api/storage
+@router.get("/") # Maneja /api/storage/
+async def handle_graphql_root_get(request: Request):
+    """Túnel directo para abrir GraphiQL desde el navegador en el gateway."""
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.request(
+            method="GET",
+            url="http://metadata-api:8000/storage",
+            params=request.query_params,
+            headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
+        )
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=_filter_response_headers(response.headers),
+        media_type=response.headers.get("content-type"),
+    )
+
+
+@router.head("")  # Maneja /api/storage en verificaciones HEAD
+@router.head("/") # Maneja /api/storage/ en verificaciones HEAD
+async def handle_graphql_root_head(request: Request):
+    """Expone los mismos headers que GET sin incluir body."""
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.request(
+            method="GET",
+            url="http://metadata-api:8000/storage",
+            params=request.query_params,
+            headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
+        )
+    return Response(
+        content=b"",
+        status_code=response.status_code,
+        headers=_filter_response_headers(response.headers),
+        media_type=response.headers.get("content-type"),
+    )
+
 @router.post("")  # Maneja /api/storage[cite: 14]
 @router.post("/") # Maneja /api/storage/[cite: 14]
 async def handle_graphql_root(request: Request):
