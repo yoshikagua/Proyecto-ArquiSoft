@@ -25,6 +25,7 @@ import {
     Send,
     BookOpen,
     Edit,
+    Heart,
 } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -358,10 +359,8 @@ const DetallePartitura = () => {
                                 : "border-secondary/30 bg-background text-foreground hover:border-secondary hover:text-secondary"
                                 }`}
                         >
-                            <img
-                                src="/favicon.ico"
-                                alt="Favorito"
-                                className={`h-4 w-4 transition-transform ${favorito ? "animate-favorite-pop" : "grayscale opacity-50"}`}
+                            <Heart
+                                className={`h-4 w-4 transition-transform ${favorito ? "fill-current animate-favorite-pop" : "grayscale opacity-50"}`}
                             />
                             {favorito ? "En favoritos" : "Añadir a favoritos"}
                         </button>
