@@ -11,14 +11,16 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Filter, BookOpen, ThumbsUp, Download, Star, X } from "lucide-react";
+import { Search, Filter, BookOpen, ThumbsUp, Download, Star, X, Heart } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
+import { useAuth } from "@/context/AuthContext";
 import { usePartituras } from "@/context/PartiturasContext";
 import { Partitura } from "@/types";
 import { storageApi } from "@/lib/apiClient";
 
 const Partituras = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { partituras: PARTITURAS_DATA } = usePartituras();
 
     // ── Estado de filtros ──
@@ -95,12 +97,19 @@ const Partituras = () => {
     const hayFiltrosActivos =
         busqueda !== "" || generoActivo !== "Todos" || instrumentoFiltro !== "";
 
+    const paymentsUrl = user
+        ? `http://localhost:3003/payments?id_user=${encodeURIComponent(String(user.id ?? ""))}&name_user=${encodeURIComponent(user.nombre)}`
+        : "http://localhost:3003/payments";
+
+    const handleDonationsClick = () => {
+        window.location.href = paymentsUrl;
+    };
+
     return (
         <MainLayout>
             <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
 
-                {/* ── Encabezado de página ── */}
-                <div className="mb-10 text-center">
+                <div className="mb-10 text-center relative">
                     <div className="mb-3 flex items-center justify-center gap-3">
                         <div className="h-px flex-1 max-w-16 bg-secondary/40" />
                         <span className="text-secondary text-xl">𝄞</span>
@@ -112,6 +121,15 @@ const Partituras = () => {
                     <p className="mt-3 text-muted-foreground">
                         Explora nuestra colección de {PARTITURAS_DATA.length} partituras musicales
                     </p>
+                    <div className="mt-6 flex justify-center">
+                        <button
+                            onClick={handleDonationsClick}
+                            className="inline-flex items-center gap-2 rounded-lg bg-red-500/10 px-5 py-2.5 text-sm font-medium text-red-600 hover:bg-red-500/20 transition-colors shadow-sm"
+                        >
+                            <Heart className="h-4 w-4" fill="currentColor" />
+                            Donaciones
+                        </button>
+                    </div>
                 </div>
 
                 {/* ── Barra de búsqueda ── */}
