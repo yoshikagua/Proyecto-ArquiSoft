@@ -1,4 +1,6 @@
 services:
+  # === CAPA DE DATOS (aislada, sin puertos expuestos) ===
+
   postgres:
     image: postgres:15-alpine
     container_name: proyectosoft-postgres
@@ -6,8 +8,6 @@ services:
       POSTGRES_USER: authuser
       POSTGRES_PASSWORD: authpass
       POSTGRES_DB: auth_db
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,14 +18,50 @@ services:
     networks:
       - data-network
 
-  mailhog:
-    image: mailhog/mailhog
-    container_name: proyectosoft-mailhog
-    ports:
-      - "1025:1025"
-      - "8025:8025"
+  payments-postgres:
+    image: postgres:15-alpine
+    container_name: payments-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: payments_db
+    volumes:
+      - payments_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d payments_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - data-network
+
+  mongo:
+    image: mongo:7
+    container_name: proyectosoft-mongo
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - data-network
+
+  notification-postgres:
+    image: postgres:15-alpine
+    container_name: notification-postgres
+    environment:
+      POSTGRES_DB: emails_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_notification_data:/var/lib/postgresql/data
+      - ./Notification/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d emails_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data-network
+
+  # === CAPA DE APLICACIÓN (solo acceso interno) ===
 
   user-api:
     build:
@@ -35,33 +71,11 @@ services:
       DATABASE_URL: postgres://authuser:authpass@postgres:5432/auth_db
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
       NOTIFICATION_URL: http://notification-producer:8000
-    ports:
-      - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - services-network
-      - data-network
-      - messaging-network
-
-  payments-postgres:
-    image: postgres:15-alpine
-    container_name: payments-postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: payments_db
-    ports:
-      - "5434:5432"
-    volumes:
-      - payments_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d payments_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
       - data-network
 
   payments_app:
@@ -78,8 +92,6 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       FRONTEND_URL: http://localhost:8080
-    ports:
-      - "3002:3000"
     depends_on:
       payments-postgres:
         condition: service_healthy
@@ -90,7 +102,6 @@ services:
     networks:
       - services-network
       - data-network
-      - messaging-network
 
   mf_payments:
     build:
@@ -105,42 +116,15 @@ services:
     depends_on:
       - payments_app
     networks:
-      - services-network
       - edge-network
+      - services-network
 
-  mongo:
-    image: mongo:7
-    container_name: proyectosoft-mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - data-network
-
-  minio:
-    image: minio/minio
-    platform: linux/amd64
-    container_name: proyectosoft-minio
-    environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: password
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    networks:
-      - storage-network
-
-# --- NUEVO: Servicio especializado en Metadatos (GraphQL) ---
   metadata-api:
     build:
       context: ./metadata-api
     container_name: gateway-metadata-api
     environment:
-      MONGO_URI: mongodb://mongo:27017
+      MONGO_URI: mongodb://proyectosoft-mongo:27017
       DB_NAME: music_db
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
       JWT_ALGORITHM: HS256
@@ -153,13 +137,12 @@ services:
       - services-network
       - data-network
 
-  # --- NUEVO: Servicio especializado en Archivos (REST) ---
   files-api:
     build:
       context: ./files-api
     container_name: gateway-files-api
     environment:
-      MINIO_ENDPOINT: minio:9000
+      MINIO_ENDPOINT: proyectosoft-minio:9000
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: password
       BUCKET_NAME: scores
@@ -169,8 +152,95 @@ services:
     networks:
       - services-network
       - data-network
-      - messaging-network
       - storage-network
+
+  notification-producer:
+    build:
+      context: ./Notification
+      dockerfile: Dockerfile
+    container_name: notification-producer
+    command: ["php", "-S", "0.0.0.0:8000", "router.php"]
+    depends_on:
+      notification-rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: notification-rabbitmq
+      RABBITMQ_PORT: 5672
+    networks:
+      - services-network
+      - messaging-network
+
+  notification-worker:
+    build:
+      context: ./Notification
+      dockerfile: Dockerfile
+    container_name: notification-worker
+    command: ["php", "email.php"]
+    depends_on:
+      notification-rabbitmq:
+        condition: service_healthy
+      notification-postgres:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: notification-rabbitmq
+      RABBITMQ_PORT: 5672
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      DB_HOST: notification-postgres
+      DB_PORT: 5432
+      DB_NAME: emails_db
+      DB_USER: postgres
+      DB_PASSWORD: password
+    networks:
+      - services-network
+      - data-network
+      - messaging-network
+    restart: unless-stopped
+
+  notification-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: notification-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "15672:15672"    # Expón solo la UI de gestión para acceso web (no el puerto 5672 para prod)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - messaging-network
+
+  # === INFRAESTRUCTURA DE ALMACENAMIENTO (opcionalmente accesible desde fuera) ===
+
+  minio:
+    image: minio/minio
+    platform: linux/amd64
+    container_name: proyectosoft-minio
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # API pública si lo requieres.
+      - "9001:9001"   # UI de administración
+    volumes:
+      - minio_data:/data
+    networks:
+      - storage-network
+      - edge-network
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: proyectosoft-mailhog
+    # Solo para desarrollo → comentar para producción
+    ports:
+      - "8025:8025"
+    networks:
+      - edge-network
+
+  # === CAPA DE EXPOSICIÓN (solo servicios de entrada al sistema) ===
 
   api-gateway:
     build:
@@ -213,89 +283,6 @@ services:
     networks:
       - edge-network
 
-  # ===== Notification Module Services =====
-
-  notification-rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: notification-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - messaging-network
-
-  notification-postgres:
-    image: postgres:15-alpine
-    container_name: notification-postgres
-    environment:
-      POSTGRES_DB: emails_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_notification_data:/var/lib/postgresql/data
-      - ./Notification/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d emails_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - data-network
-
-  notification-producer:
-    build:
-      context: ./Notification
-      dockerfile: Dockerfile
-    container_name: notification-producer
-    command: ["php", "-S", "0.0.0.0:8000", "router.php"]
-    ports:
-      - "8002:8000"
-    depends_on:
-      notification-rabbitmq:
-        condition: service_healthy
-    environment:
-      RABBITMQ_HOST: notification-rabbitmq
-      RABBITMQ_PORT: 5672
-    networks:
-      - services-network
-      - messaging-network
-
-  notification-worker:
-    build:
-      context: ./Notification
-      dockerfile: Dockerfile
-    container_name: notification-worker
-    command: ["php", "email.php"]
-    depends_on:
-      notification-rabbitmq:
-        condition: service_healthy
-      notification-postgres:
-        condition: service_healthy
-    environment:
-      RABBITMQ_HOST: notification-rabbitmq
-      RABBITMQ_PORT: 5672
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
-      DB_HOST: notification-postgres
-      DB_PORT: 5432
-      DB_NAME: emails_db
-      DB_USER: postgres
-      DB_PASSWORD: password
-    networks:
-      - services-network
-      - data-network
-      - messaging-network
-    restart: unless-stopped
-
 volumes:
   postgres_data:
   payments_postgres_data:
@@ -306,19 +293,14 @@ volumes:
 networks:
   edge-network:
     driver: bridge
-
   services-network:
     driver: bridge
     internal: true
-
   data-network:
     driver: bridge
     internal: true
-
   messaging-network:
     driver: bridge
-    internal: true
-
   storage-network:
     driver: bridge
     internal: true
