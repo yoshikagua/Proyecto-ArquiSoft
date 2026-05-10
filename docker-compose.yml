@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - main-network
+      - data-network
 
   mailhog:
     image: mailhog/mailhog
@@ -25,7 +25,7 @@ services:
       - "1025:1025"
       - "8025:8025"
     networks:
-      - main-network
+      - data-network
 
   user-api:
     build:
@@ -41,7 +41,9 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - main-network
+      - services-network
+      - data-network
+      - messaging-network
 
   payments-postgres:
     image: postgres:15-alpine
@@ -60,7 +62,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - main-network
+      - data-network
 
   payments_app:
     build:
@@ -86,7 +88,9 @@ services:
       - /app/node_modules
     command: npm run dev
     networks:
-      - main-network
+      - services-network
+      - data-network
+      - messaging-network
 
   mf_payments:
     build:
@@ -101,7 +105,8 @@ services:
     depends_on:
       - payments_app
     networks:
-      - main-network
+      - services-network
+      - edge-network
 
   mongo:
     image: mongo:7
@@ -111,7 +116,7 @@ services:
     volumes:
       - mongo_data:/data/db
     networks:
-      - main-network
+      - data-network
 
   minio:
     image: minio/minio
@@ -127,7 +132,7 @@ services:
     volumes:
       - minio_data:/data
     networks:
-      - main-network
+      - storage-network
 
 # --- NUEVO: Servicio especializado en Metadatos (GraphQL) ---
   metadata-api:
@@ -145,7 +150,8 @@ services:
       mongo:
         condition: service_started
     networks:
-    - main-network
+      - services-network
+      - data-network
 
   # --- NUEVO: Servicio especializado en Archivos (REST) ---
   files-api:
@@ -161,7 +167,10 @@ services:
       minio:
         condition: service_started
     networks:
-      - main-network
+      - services-network
+      - data-network
+      - messaging-network
+      - storage-network
 
   api-gateway:
     build:
@@ -187,7 +196,8 @@ services:
       notification-producer:
         condition: service_started
     networks:
-      - main-network
+      - edge-network
+      - services-network
 
   frontend:
     build:
@@ -201,7 +211,7 @@ services:
       api-gateway:
         condition: service_started
     networks:
-      - main-network
+      - edge-network
 
   # ===== Notification Module Services =====
 
@@ -220,7 +230,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - main-network
+      - messaging-network
 
   notification-postgres:
     image: postgres:15-alpine
@@ -240,7 +250,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - main-network
+      - data-network
 
   notification-producer:
     build:
@@ -257,7 +267,8 @@ services:
       RABBITMQ_HOST: notification-rabbitmq
       RABBITMQ_PORT: 5672
     networks:
-      - main-network
+      - services-network
+      - messaging-network
 
   notification-worker:
     build:
@@ -280,7 +291,9 @@ services:
       DB_USER: postgres
       DB_PASSWORD: password
     networks:
-      - main-network
+      - services-network
+      - data-network
+      - messaging-network
     restart: unless-stopped
 
 volumes:
@@ -291,5 +304,21 @@ volumes:
   postgres_notification_data:
 
 networks:
-  main-network:
+  edge-network:
     driver: bridge
+
+  services-network:
+    driver: bridge
+    internal: true
+
+  data-network:
+    driver: bridge
+    internal: true
+
+  messaging-network:
+    driver: bridge
+    internal: true
+
+  storage-network:
+    driver: bridge
+    internal: true
