@@ -231,14 +231,6 @@ services:
       - storage-network
       - edge-network
 
-  mailhog:
-    image: mailhog/mailhog
-    container_name: proyectosoft-mailhog
-    # Solo para desarrollo → comentar para producción
-    ports:
-      - "8025:8025"
-    networks:
-      - edge-network
 
   # === CAPA DE EXPOSICIÓN (solo servicios de entrada al sistema) ===
 
