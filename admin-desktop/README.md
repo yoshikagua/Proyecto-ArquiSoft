@@ -83,12 +83,50 @@ xcode-select --install
 
 ## Backend requerido
 
-La app se conecta al API Gateway del proyecto principal (**Proyecto-ArquiSoft**). Debe estar corriendo antes de abrir la app de escritorio.
+La app se conecta al API Gateway a través de un **proxy inverso dedicado** (`desktop-proxy`) con canal seguro TLS, completamente separado del proxy del frontend web. Todos los servicios deben estar corriendo antes de abrir la app.
 
 ```bash
-# Desde la raíz de Proyecto-ArquiSoft
+# Desde la raíz del proyecto (donde está el docker-compose.yml)
 docker compose up
 ```
+
+### Arquitectura de conexión
+
+```
+[admin-desktop]  →  https://localhost:4443  →  [desktop-proxy (nginx TLS)]  →  [api-gateway]
+```
+
+El `desktop-proxy` escucha exclusivamente en el puerto **4443** con HTTPS (TLS 1.2/1.3) y enruta únicamente las peticiones del panel de administración hacia el API Gateway. Es independiente del proxy del frontend web (puerto 443).
+
+---
+
+## Paso único: confiar en el certificado TLS (por máquina)
+
+Dado que el canal seguro usa un certificado autofirmado, Windows debe registrarlo como confiable **una sola vez por equipo**. Sin este paso, WebView2 (el motor interno de Tauri) rechazará las conexiones HTTPS al proxy.
+
+**Paso 1 — Generar el certificado** (solo si no existe o hay que renovarlo).  
+Desde la raíz del proyecto con Docker corriendo:
+
+```bash
+docker run --rm -v "%CD%\certs:/certs" alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/gateway.key -out /certs/gateway.crt -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+**Paso 2 — Importar el certificado en Windows** (una sola vez por equipo).  
+Abre **PowerShell como Administrador**, navega a la raíz del proyecto y ejecuta:
+
+```powershell
+Import-Certificate -FilePath "certs\gateway.crt" -CertStoreLocation "Cert:\LocalMachine\Root"
+```
+
+Si aparece un `Thumbprint` con un hash largo, fue exitoso.
+
+**Paso 3 — Reiniciar los proxies** para que nginx tome el nuevo certificado:
+
+```bash
+docker compose restart reverse-proxy desktop-proxy
+```
+
+> Una vez importado, cualquier build del `.exe` funcionará en esa máquina sin repetir estos pasos.
 
 ---
 
@@ -199,7 +237,8 @@ admin-desktop/
 | Build | Vite |
 | Desktop runtime | Tauri 2 |
 | Backend nativo | Rust |
-| API | REST + GraphQL → API Gateway en `localhost:8000` |
+| API | REST + GraphQL → desktop-proxy (TLS) → API Gateway |
+| Proxy | nginx (canal seguro TLS en `localhost:4443`) |
 
 ---
 

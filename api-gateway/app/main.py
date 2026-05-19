@@ -17,7 +17,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         settings.frontend_url,
-        "http://localhost:8080",       # Web frontend (Docker)
+        "https://localhost",           # Web frontend vía reverse-proxy (443)
+        "https://localhost:4443",      # admin-desktop vía desktop-proxy (4443)
+        "http://localhost:8080",       # Web frontend (acceso directo legacy)
         "http://127.0.0.1:8080",
         "http://localhost:1420",       # Tauri desktop (Vite dev)
         "http://127.0.0.1:1420",      # Tauri desktop (Vite dev)

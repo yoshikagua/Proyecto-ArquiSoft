@@ -5,9 +5,9 @@
  * y control total del almacenamiento (Storage), omitiendo registro y recuperación.
  */
 
-// En Docker (nginx proxy): VITE_API_URL="" → requests relativos → nginx → gateway
-// En Tauri dev:            VITE_API_URL no definido → fallback a localhost:8000
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+// En Tauri dev:        Vite proxy intercepta /api/* → desktop-proxy (4443) → gateway
+// En Tauri producción: requests van a https://localhost:4443 → desktop-proxy → gateway
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "https://localhost:4443";
 
 // ==========================================
 // INTERFACES

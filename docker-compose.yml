@@ -261,6 +261,19 @@ services:
     networks:
       - edge-network
 
+  desktop-proxy:
+    image: nginx:alpine
+    container_name: proyectosoft-desktop-proxy
+    ports:
+      - "4443:4443" # Canal seguro HTTPS exclusivo para admin-desktop (Tauri)
+    volumes:
+      - ./nginx-desktop.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - api-gateway
+    networks:
+      - edge-network
+
   api-gateway:
     build:
       context: ./api-gateway
