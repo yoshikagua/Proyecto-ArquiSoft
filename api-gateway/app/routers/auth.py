@@ -1,11 +1,14 @@
+#Proyecto-ArquiSoft/api-gateway/app/routers/auth.py
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 import httpx
 import json
 from ..config.settings import settings
+# IMPORTAMOS EL HELPER CENTRALIZADO
+from ..utils.security import generate_internal_service_headers
 
 router = APIRouter(
-    prefix="/api/auth",
+    prefix="/auth",
     tags=["auth"],
     responses={404: {"description": "Not found"}},
 )
@@ -66,21 +69,30 @@ async def login(request: LoginRequest):
     Redirecciona la solicitud a la API de usuarios.
     """
     try:
+        # 1. Generamos las firmas del Canal Seguro Interno
+        internal_headers = generate_internal_service_headers()
+        
+        # 2. Las combinamos con las cabeceras normales de la petición
+        headers = {
+            **internal_headers,
+            "Content-Type": "application/json"
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{settings.user_api_url}/auth/login",
                 json=request.model_dump(),
-                timeout=30.0
+                headers=headers, # <--- Se envían de forma segura por la red de Docker
+                timeout=30.0,
             )
-        
-        if response.status_code != 200:
+
+        if response.status_code >= 400:
             raise HTTPException(
                 status_code=response.status_code,
-                detail="Error en la autenticación"
+                detail=_extract_upstream_error_message(response, "Error al iniciar sesión"),
             )
-        
+
         return response.json()
-    
     except httpx.RequestError as e:
         raise HTTPException(
             status_code=503,
@@ -109,10 +121,18 @@ async def signup(request: SignUpRequest):
             "role_id": request.role_id,
         }
 
+        # MODIFICADO: Añadir cabeceras del canal seguro interno
+        internal_headers = generate_internal_service_headers()
+        headers = {
+            **internal_headers,
+            "Content-Type": "application/json"
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{settings.user_api_url}/auth/register",
                 json=upstream_payload,
+                headers=headers,
                 timeout=30.0
             )
         
@@ -135,8 +155,11 @@ async def signup(request: SignUpRequest):
 async def health_check():
     """Verificar estado de los servicios de autenticación"""
     try:
+        # MODIFICADO: El health check también firma para que auth-api no le cuelgue con 403
+        headers = generate_internal_service_headers()
+
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{settings.user_api_url}/health")
+            response = await client.get(f"{settings.user_api_url}/health", headers=headers)
             user_api_status = "online" if response.status_code == 200 else f"offline_{response.status_code}"
     except Exception:
         user_api_status = "unreachable"
@@ -156,10 +179,17 @@ async def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Authorization header missing")
 
     try:
+        # MODIFICADO: Combinar token del cliente externo + firma de identidad interna
+        internal_headers = generate_internal_service_headers()
+        headers = {
+            **internal_headers,
+            "Authorization": auth_header
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{settings.user_api_url}/auth/me",
-                headers={"Authorization": auth_header},
+                headers=headers,
                 timeout=30.0,
             )
 
@@ -184,10 +214,17 @@ async def get_users(request: Request, limit: int = 50, offset: int = 0):
         raise HTTPException(status_code=401, detail="Authorization header missing")
 
     try:
+        # MODIFICADO: Combinar token del cliente externo + firma de identidad interna
+        internal_headers = generate_internal_service_headers()
+        headers = {
+            **internal_headers,
+            "Authorization": auth_header
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{settings.user_api_url}/auth/users",
-                headers={"Authorization": auth_header},
+                headers=headers,
                 params={"limit": limit, "offset": offset},
                 timeout=30.0,
             )
@@ -213,10 +250,18 @@ async def update_user(user_id: int, payload: UpdateUserRequest, request: Request
         raise HTTPException(status_code=401, detail="Authorization header missing")
 
     try:
+        # MODIFICADO: Combinar token del cliente externo + firma de identidad interna
+        internal_headers = generate_internal_service_headers()
+        headers = {
+            **internal_headers,
+            "Authorization": auth_header,
+            "Content-Type": "application/json"
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.put(
                 f"{settings.user_api_url}/auth/users/{user_id}",
-                headers={"Authorization": auth_header},
+                headers=headers,
                 json=payload.model_dump(exclude_none=True),
                 timeout=30.0,
             )
@@ -244,10 +289,18 @@ async def recover_password(request: RecoveryRequest):
     Proxy para enviar código de recuperación de contraseña.
     """
     try:
+        # MODIFICADO: Añadir cabeceras del canal seguro interno
+        internal_headers = generate_internal_service_headers()
+        headers = {
+            **internal_headers,
+            "Content-Type": "application/json"
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{settings.user_api_url}/auth/recover",
                 json=request.model_dump(),
+                headers=headers,
                 timeout=30.0,
             )
 
@@ -275,10 +328,18 @@ async def verify_recovery_code(request: VerifyRecoveryCodeRequest):
     Proxy para verificar el código de recuperación.
     """
     try:
+        # MODIFICADO: Añadir cabeceras del canal seguro interno
+        internal_headers = generate_internal_service_headers()
+        headers = {
+            **internal_headers,
+            "Content-Type": "application/json"
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{settings.user_api_url}/auth/verify-recovery-code",
                 json=request.model_dump(),
+                headers=headers,
                 timeout=30.0,
             )
 
@@ -306,10 +367,18 @@ async def reset_password(request: ResetPasswordRequest):
     Proxy para restablecer la contraseña con código válido.
     """
     try:
+        # MODIFICADO: Añadir cabeceras del canal seguro interno
+        internal_headers = generate_internal_service_headers()
+        headers = {
+            **internal_headers,
+            "Content-Type": "application/json"
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{settings.user_api_url}/auth/reset-password",
                 json=request.model_dump(),
+                headers=headers,
                 timeout=30.0,
             )
 

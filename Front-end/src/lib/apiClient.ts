@@ -10,7 +10,7 @@
  * En desarrollo: http://localhost:8000
  * En producción: configurar según el servidor de despliegue
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost/api";
 
 export interface LoginRequest {
   email: string;
@@ -332,7 +332,7 @@ export const authApi = {
    * POST /api/auth/login
    */
   login: async (request: LoginRequest): Promise<LoginResponse> => {
-    const raw = await fetchApi<LoginResponse>("/api/auth/login", {
+    const raw = await fetchApi<LoginResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify(request),
     });
@@ -345,12 +345,13 @@ export const authApi = {
     };
   },
 
-  /**
+/**
    * Crea una nueva cuenta de usuario
-   * POST /api/auth/signup
+   * POST /auth/signup (El prefijo /api se inyecta automáticamente por la base URL)
    */
   signup: async (request: SignUpRequest): Promise<SignUpResponse> => {
-    return fetchApi<SignUpResponse>("/api/auth/signup", {
+    // 💡 Quitamos el "/api" inicial para evitar la duplicación en la URL final
+    return fetchApi<SignUpResponse>("/auth/signup", {
       method: "POST",
       body: JSON.stringify(request),
     });
@@ -371,13 +372,13 @@ export const authApi = {
    * GET /api/auth/me
    */
   getCurrentUser: async () => {
-    return fetchApi<CurrentUserResponse>("/api/auth/me", {
+    return fetchApi<CurrentUserResponse>("/auth/me", {
       method: "GET",
     });
   },
 
   updateUser: async (userId: number, request: UpdateUserRequest) => {
-    return fetchApi<{ message?: string }>(`/api/auth/users/${userId}`, {
+    return fetchApi<{ message?: string }>(`/auth/users/${userId}`, {
       method: "PUT",
       body: JSON.stringify(request),
     });
@@ -400,7 +401,7 @@ export const authApi = {
   },
 
   recoverPassword: async (request: RecoveryRequest): Promise<RecoveryResponse> => {
-    return fetchApi<RecoveryResponse>("/api/auth/recover", {
+    return fetchApi<RecoveryResponse>("/auth/recover", {
       method: "POST",
       body: JSON.stringify(request),
     });
@@ -409,14 +410,14 @@ export const authApi = {
   verifyRecoveryCode: async (
     request: VerifyRecoveryCodeRequest
   ): Promise<RecoveryResponse> => {
-    return fetchApi<RecoveryResponse>("/api/auth/verify-recovery-code", {
+    return fetchApi<RecoveryResponse>("/auth/verify-recovery-code", {
       method: "POST",
       body: JSON.stringify(request),
     });
   },
 
   resetPassword: async (request: ResetPasswordRequest): Promise<RecoveryResponse> => {
-    return fetchApi<RecoveryResponse>("/api/auth/reset-password", {
+    return fetchApi<RecoveryResponse>("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify(request),
     });
