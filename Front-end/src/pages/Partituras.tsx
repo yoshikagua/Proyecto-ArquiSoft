@@ -98,8 +98,8 @@ const Partituras = () => {
         busqueda !== "" || generoActivo !== "Todos" || instrumentoFiltro !== "";
 
     const paymentsUrl = user
-        ? `http://localhost:3003/payments?id_user=${encodeURIComponent(String(user.id ?? ""))}&name_user=${encodeURIComponent(user.nombre)}`
-        : "http://localhost:3003/payments";
+        ? `/donations/payments?id_user=${user.id}&name_user=${encodeURIComponent(user.nombre)}`
+        : "/donations/payments";
 
     const handleDonationsClick = () => {
         window.location.href = paymentsUrl;
