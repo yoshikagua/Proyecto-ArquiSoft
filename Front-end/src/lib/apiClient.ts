@@ -274,7 +274,7 @@ async function fetchStorageGraphQL<TData>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/storage`, {
+  const response = await fetch(`${API_BASE_URL}/storage`, {
     method: "POST",
     headers,
     body: JSON.stringify({ query, variables }),
