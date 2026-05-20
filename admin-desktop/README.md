@@ -102,23 +102,39 @@ El `desktop-proxy` escucha exclusivamente en el puerto **4443** con HTTPS (TLS 1
 
 ## Paso único: confiar en el certificado TLS (por máquina)
 
-Dado que el canal seguro usa un certificado autofirmado, Windows debe registrarlo como confiable **una sola vez por equipo**. Sin este paso, WebView2 (el motor interno de Tauri) rechazará las conexiones HTTPS al proxy.
+Dado que el canal seguro usa un certificado autofirmado, el sistema operativo debe registrarlo como confiable **una sola vez por equipo**. Sin este paso, el motor interno de Tauri rechazará las conexiones HTTPS al proxy.
 
-**Paso 1 — Generar el certificado del desktop-proxy** (una vez por equipo, la carpeta `certs-desktop/` no está en git).  
-Desde la raíz del proyecto con Docker corriendo:
+**Paso 1 — Generar el certificado del desktop-proxy.**  
+Los certificados ya están en `certs-desktop/` dentro del repositorio. Si por alguna razón necesitas regenerarlos, ejecuta desde la raíz del proyecto con Docker corriendo:
 
 ```bash
 docker run --rm -v "%CD%\certs-desktop:/certs" alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/desktop.key -out /certs/desktop.crt -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 ```
 
-**Paso 2 — Importar el certificado en Windows** (una sola vez por equipo).  
-Abre **PowerShell como Administrador**, navega a la raíz del proyecto y ejecuta:
+**Paso 2 — Importar el certificado según tu sistema operativo.**
+
+#### Windows
+Abre **PowerShell como Administrador** y ejecuta:
 
 ```powershell
-Import-Certificate -FilePath "certs-desktop\desktop.crt" -CertStoreLocation "Cert:\LocalMachine\Root"
+Import-Certificate -FilePath "<ruta-al-proyecto>\certs-desktop\desktop.crt" -CertStoreLocation "Cert:\LocalMachine\Root"
 ```
 
+> Reemplaza `<ruta-al-proyecto>` con la ruta donde tengas clonado el repositorio.
+
 Si aparece un `Thumbprint` con un hash largo, fue exitoso.
+
+#### Ubuntu / Debian
+```bash
+sudo cp certs-desktop/desktop.crt /usr/local/share/ca-certificates/desktop.crt
+sudo update-ca-certificates
+```
+
+#### Fedora / RHEL / Arch
+```bash
+sudo cp certs-desktop/desktop.crt /etc/pki/ca-trust/source/anchors/desktop.crt
+sudo update-ca-trust
+```
 
 **Paso 3 — Levantar Docker** para que el desktop-proxy tome el certificado:
 
@@ -126,7 +142,7 @@ Si aparece un `Thumbprint` con un hash largo, fue exitoso.
 docker compose up -d
 ```
 
-> Una vez importado, cualquier build del `.exe` funcionará en esa máquina sin repetir estos pasos.
+> Una vez importado, cualquier build del ejecutable funcionará en esa máquina sin repetir estos pasos.
 
 ---
 
