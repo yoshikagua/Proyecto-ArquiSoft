@@ -260,6 +260,7 @@ services:
       - ./certs/gateway.key:/etc/nginx/certs/tls.key:ro
       # regla personalizada para pesistencia de graphql 
       - ./coraza/graphql-before.conf:/etc/modsecurity.d/owasp-crs/plugins/graphql-before.conf:ro
+      - ./coraza/methods-before.conf:/etc/modsecurity.d/owasp-crs/plugins/methods-before.conf:ro
     depends_on:
       - web-reverse-proxy
     networks:

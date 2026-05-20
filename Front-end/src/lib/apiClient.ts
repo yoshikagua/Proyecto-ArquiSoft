@@ -726,7 +726,7 @@ uploadScore: async (request: UploadScoreRequest): Promise<StorageScore> => {
 
 // actualiza el método deleteScore
 deleteScore: async (id: string): Promise<{ message?: string }> => {
-  return fetchApi<{ message?: string }>(`/api/storage/remove/${id}`, {
+  return fetchApi<{ message?: string }>(`/storage/remove/${id}`, {
     method: "DELETE",
   });
 },
