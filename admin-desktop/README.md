@@ -104,26 +104,26 @@ El `desktop-proxy` escucha exclusivamente en el puerto **4443** con HTTPS (TLS 1
 
 Dado que el canal seguro usa un certificado autofirmado, Windows debe registrarlo como confiable **una sola vez por equipo**. Sin este paso, WebView2 (el motor interno de Tauri) rechazará las conexiones HTTPS al proxy.
 
-**Paso 1 — Generar el certificado** (solo si no existe o hay que renovarlo).  
+**Paso 1 — Generar el certificado del desktop-proxy** (una vez por equipo, la carpeta `certs-desktop/` no está en git).  
 Desde la raíz del proyecto con Docker corriendo:
 
 ```bash
-docker run --rm -v "%CD%\certs:/certs" alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/gateway.key -out /certs/gateway.crt -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+docker run --rm -v "%CD%\certs-desktop:/certs" alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/desktop.key -out /certs/desktop.crt -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 ```
 
 **Paso 2 — Importar el certificado en Windows** (una sola vez por equipo).  
 Abre **PowerShell como Administrador**, navega a la raíz del proyecto y ejecuta:
 
 ```powershell
-Import-Certificate -FilePath "certs\gateway.crt" -CertStoreLocation "Cert:\LocalMachine\Root"
+Import-Certificate -FilePath "certs-desktop\desktop.crt" -CertStoreLocation "Cert:\LocalMachine\Root"
 ```
 
 Si aparece un `Thumbprint` con un hash largo, fue exitoso.
 
-**Paso 3 — Reiniciar los proxies** para que nginx tome el nuevo certificado:
+**Paso 3 — Levantar Docker** para que el desktop-proxy tome el certificado:
 
 ```bash
-docker compose restart reverse-proxy desktop-proxy
+docker compose up -d
 ```
 
 > Una vez importado, cualquier build del `.exe` funcionará en esa máquina sin repetir estos pasos.
