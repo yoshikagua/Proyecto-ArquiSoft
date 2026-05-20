@@ -6,14 +6,24 @@ import { usePartituras } from "../context/PartiturasContext";
 import { Partitura } from "../types";
 import { storageApi } from "../lib/apiClient";
 
+type OrdenPartituras = "populares" | "recientes" | "descargadas" | "alfabetico";
+
 const Partituras = () => {
   const navigate = useNavigate();
   const { partituras: PARTITURAS_DATA } = usePartituras();
 
-  const [busqueda, setBusqueda] = useState("");
-  const [generoActivo, setGeneroActivo] = useState("Todos");
-  const [instrumentoFiltro, setInstrumentoFiltro] = useState("");
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [busqueda, setBusqueda] = useState(() => localStorage.getItem("admin_filtro_busqueda") || "");
+  const [generoActivo, setGeneroActivo] = useState(() => localStorage.getItem("admin_filtro_genero") || "Todos");
+  const [instrumentoFiltro, setInstrumentoFiltro] = useState(() => localStorage.getItem("admin_filtro_instrumento") || "");
+  const [ordenActivo, setOrdenActivo] = useState<OrdenPartituras>(() => (localStorage.getItem("admin_filtro_orden") as OrdenPartituras) || "populares");
+  const [mostrarFiltros, setMostrarFiltros] = useState(() => !!localStorage.getItem("admin_filtro_instrumento"));
+
+  useEffect(() => {
+    localStorage.setItem("admin_filtro_busqueda", busqueda);
+    localStorage.setItem("admin_filtro_genero", generoActivo);
+    localStorage.setItem("admin_filtro_instrumento", instrumentoFiltro);
+    localStorage.setItem("admin_filtro_orden", ordenActivo);
+  }, [busqueda, generoActivo, instrumentoFiltro, ordenActivo]);
   const [generosDisponibles, setGenerosDisponibles] = useState<string[]>(["Todos"]);
 
   useEffect(() => {
@@ -44,6 +54,22 @@ const Partituras = () => {
       return coincideBusqueda && coincideGenero && coincideInstrumento;
     });
   }, [busqueda, generoActivo, instrumentoFiltro, PARTITURAS_DATA]);
+
+  const partiturasOrdenadas = useMemo<Partitura[]>(() => {
+    const lista = [...partiturasFiltradas];
+
+    switch (ordenActivo) {
+      case "recientes":
+        return lista.sort((a, b) => b.anio - a.anio);
+      case "descargadas":
+        return lista.sort((a, b) => b.descargas - a.descargas);
+      case "alfabetico":
+        return lista.sort((a, b) => a.titulo.localeCompare(b.titulo, "es", { sensitivity: "base" }));
+      case "populares":
+      default:
+        return lista.sort((a, b) => b.likes - a.likes);
+    }
+  }, [partiturasFiltradas, ordenActivo]);
 
   const limpiarFiltros = () => {
     setBusqueda("");
@@ -156,11 +182,15 @@ const Partituras = () => {
                 <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                   Ordenar por
                 </label>
-                <select className="w-full rounded-lg border border-input bg-background py-2 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20">
-                  <option>Más populares</option>
-                  <option>Más recientes</option>
-                  <option>Más descargados</option>
-                  <option>Alfabético (A–Z)</option>
+                <select
+                  value={ordenActivo}
+                  onChange={(e) => setOrdenActivo(e.target.value as OrdenPartituras)}
+                  className="w-full rounded-lg border border-input bg-background py-2 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20"
+                >
+                  <option value="populares">Más populares</option>
+                  <option value="recientes">Más recientes</option>
+                  <option value="descargadas">Más descargados</option>
+                  <option value="alfabetico">Alfabético (A–Z)</option>
                 </select>
               </div>
             </div>
@@ -175,9 +205,9 @@ const Partituras = () => {
         </p>
 
         {/* Grid de tarjetas */}
-        {partiturasFiltradas.length > 0 ? (
+        {partiturasOrdenadas.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {partiturasFiltradas.map((partitura) => (
+            {partiturasOrdenadas.map((partitura) => (
               <PartituraCard
                 key={partitura.id}
                 partitura={partitura}

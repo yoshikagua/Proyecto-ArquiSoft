@@ -84,5 +84,53 @@ class GatewayStorageConnectionTests(unittest.TestCase):
         
         self.assertEqual(response.status_code, 503)
 
+    def test_upload_score_returns_409_when_file_already_exists(self):
+        """Si files-api marca duplicado, el gateway debe responder 409 y no tocar metadata-api."""
+
+        class _UploadDuplicateClient:
+            calls = []
+
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def post(self, url, json=None, files=None, headers=None, timeout=None):
+                self.__class__.calls.append(url)
+                if "files-api" in url:
+                    return _FakeResponse(
+                        200,
+                        {
+                            "message": "El archivo ya existe en el servidor",
+                            "object_key": "abc123.pdf",
+                            "file_hash": "abc123",
+                            "status": "skipped",
+                        },
+                    )
+                return _FakeResponse(200, {"data": {"uploadScore": {"id": "1"}}})
+
+        with patch("app.routers.storage.httpx.AsyncClient", _UploadDuplicateClient):
+            response = self.client.post(
+                "/api/storage/upload-score",
+                data={
+                    "title": "Test",
+                    "composer": "Autor",
+                    "genre": "Clasico",
+                    "format_type": "Solista",
+                    "year": "2020",
+                    "description": "",
+                    "instruments": "[]",
+                },
+                files={"file": ("test.pdf", b"%PDF-1.4 test", "application/pdf")},
+            )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("ya fue subido", response.json().get("detail", ""))
+        self.assertEqual(_UploadDuplicateClient.calls, ["http://files-api:8000/upload"])
+
 if __name__ == "__main__":
     unittest.main()

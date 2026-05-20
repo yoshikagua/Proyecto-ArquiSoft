@@ -36,9 +36,9 @@ const SubirPartitura = () => {
   const [catalogoInstrumentos, setCatalogoInstrumentos] = useState<string[]>([]);
   const [catalogoFormatos, setCatalogoFormatos] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; desc?: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; desc?: string; type: "success" | "error" | "warning" } | null>(null);
 
-  const showToast = (msg: string, type: "success" | "error", desc?: string) => {
+  const showToast = (msg: string, type: "success" | "error" | "warning", desc?: string) => {
     setToast({ msg, type, desc });
     setTimeout(() => setToast(null), 5000);
   };
@@ -143,6 +143,10 @@ const SubirPartitura = () => {
       setTimeout(() => navigate("/partituras"), 1500);
     } catch (err) {
       if (err instanceof ApiClientError) {
+        if (err.status === 409) {
+          showToast("Archivo duplicado", "warning", err.message || "No se puede subir la partitura porque este archivo ya fue subido previamente.");
+          return;
+        }
         showToast("No se pudo subir la partitura", "error", err.message);
       } else {
         showToast("No se pudo subir la partitura", "error", "Ocurrió un error inesperado.");
@@ -162,7 +166,11 @@ const SubirPartitura = () => {
       {/* Toast */}
       {toast && (
         <div className={`fixed top-20 right-4 z-50 max-w-sm rounded-lg px-4 py-3 shadow-lg ${
-          toast.type === "success" ? "bg-green-600 text-white" : "bg-destructive text-white"
+          toast.type === "success"
+            ? "bg-green-600 text-white"
+            : toast.type === "warning"
+              ? "bg-amber-500 text-white"
+              : "bg-destructive text-white"
         }`}>
           <p className="text-sm font-medium">{toast.msg}</p>
           {toast.desc && <p className="mt-0.5 text-xs opacity-90">{toast.desc}</p>}

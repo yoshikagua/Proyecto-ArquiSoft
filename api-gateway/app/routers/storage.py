@@ -69,14 +69,10 @@ async def orchestrate_upload(
 
             # Lógica de Deduplicación
             if file_info.get("status") == "skipped":
-                return {
-                    "data": {
-                        "uploadScore": {
-                            "id": "existing_" + file_info["file_hash"][:8],
-                            "title": f"{title} (Ya existente)"
-                        }
-                    }
-                }
+                raise HTTPException(
+                    status_code=409,
+                    detail="El archivo ya fue subido previamente."
+                )
 
         except Exception as e:
             if isinstance(e, HTTPException): raise e

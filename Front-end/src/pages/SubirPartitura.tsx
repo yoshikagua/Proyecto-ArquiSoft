@@ -216,6 +216,15 @@ const SubirPartitura = () => {
             navigate("/partituras");
         } catch (err) {
             if (err instanceof ApiClientError) {
+                if (err.status === 409) {
+                    toast.warning("Archivo duplicado", {
+                        description:
+                            err.message ||
+                            "No se puede subir la partitura porque este archivo ya fue subido previamente.",
+                        duration: 5000,
+                    });
+                    return;
+                }
                 toast.error("No se pudo subir la partitura", {
                     description: err.message,
                 });
