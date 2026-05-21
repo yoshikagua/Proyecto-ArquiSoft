@@ -342,9 +342,10 @@ const handleEliminarPartitura = async (id: string) => {
               {misPartituras.map((p) => (
                 <Card key={p.id} className="transition-shadow hover:shadow-md">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between min-w-0">
                       <CardTitle
-                        className="font-serif text-base leading-tight cursor-pointer hover:text-primary transition-colors"
+                        title={p.titulo}
+                        className="font-serif text-base leading-tight cursor-pointer hover:text-primary transition-colors truncate"
                         onClick={() => navigate(`/partituras/${p.id}`)}
                       >
                         {p.titulo}

@@ -335,7 +335,10 @@ const PartituraCard = ({ partitura, onClick }: PartituraCardProps) => {
                 <span className="mt-0.5 font-serif text-2xl text-secondary">♪</span>
                 <div>
                     {/* Título de la partitura */}
-                    <h2 className="font-serif text-base font-semibold leading-snug text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                    <h2
+                        title={partitura.titulo}
+                        className="font-serif text-base font-semibold leading-snug text-foreground group-hover:text-primary transition-colors truncate"
+                    >
                         {partitura.titulo}
                     </h2>
                     {/* Autor */}
