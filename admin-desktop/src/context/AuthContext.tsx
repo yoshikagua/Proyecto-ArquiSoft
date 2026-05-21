@@ -29,7 +29,7 @@ export const useAuth = (): AuthContextValue => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const getStoredToken = () => {
-    const t = localStorage.getItem("auth_token");
+    const t = localStorage.getItem("auth_token") || localStorage.getItem("access_token");
     return !t || t === "undefined" || t === "null" ? null : t;
   };
 
@@ -48,18 +48,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user && token) {
       localStorage.setItem("auth_user", JSON.stringify(user));
       localStorage.setItem("auth_token", token);
+      localStorage.setItem("access_token", token);
     } else {
       localStorage.removeItem("auth_user");
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("access_token");
     }
   }, [user, token]);
 
   const login = (newToken: string, userData: AuthUser) => {
+    if (!newToken || newToken === "undefined" || newToken === "null") {
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("access_token");
+      return;
+    }
+
     setToken(newToken);
     setUser(userData);
   };
 
   const logout = () => {
+    localStorage.removeItem("auth_user");
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("access_token");
     setToken(null);
     setUser(null);
   };

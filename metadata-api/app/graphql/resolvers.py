@@ -156,7 +156,7 @@ class Query:
     async def scores(self, info: Info) -> list[ScoreType]:
         requester_user_id = _parse_user_id_from_request(info, required=False)
         collection = get_scores_collection()
-        docs = await collection.find().to_list(100)
+        docs = await collection.find().to_list(length=None)
 
         return [_serialize_score(doc, requester_user_id) for doc in docs]
 

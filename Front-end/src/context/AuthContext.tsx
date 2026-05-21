@@ -153,6 +153,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
      * (por ejemplo, el botón de la Navbar) usando useNavigate.
      */
     const logout = () => {
+        localStorage.removeItem("auth_user");
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("auth_token");
         setUser(null);
     };
 

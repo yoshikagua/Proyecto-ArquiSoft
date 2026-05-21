@@ -59,11 +59,10 @@ async def orchestrate_upload(
     auth_header = request.headers.get("Authorization")
     
     # Generar firmas para los canales internos
-    internal_headers = generate_internal_service_headers()
-    
     async with httpx.AsyncClient(timeout=120.0) as client:
         # --- PASO 1: Subida a Files-API ---
         try:
+            internal_headers = generate_internal_service_headers()
             file_content = await file.read()
             # Anexamos las firmas HMAC a la petición multipart de archivos
             files_res = await client.post(
@@ -100,7 +99,29 @@ async def orchestrate_upload(
                         formatType: $formatType, year: $year, objectKey: $objectKey, 
                         fileName: $fileName, contentType: $contentType, 
                         description: $description, instruments: $instruments
-                    ) { id title }
+                    ) {
+                        id
+                        title
+                        composer
+                        genre
+                        format
+                        year
+                        uploadedBy
+                        fileUrl
+                        description
+                        instruments
+                        likes
+                        downloads
+                        favorito
+                        liked
+                        comentarios {
+                            id
+                            usuario
+                            avatar
+                            texto
+                            fecha
+                        }
+                    }
                 }
             """,
             "variables": {
@@ -118,6 +139,7 @@ async def orchestrate_upload(
         }
 
         # Combinar Content-Type, firmas HMAC internas y token de usuario externo si existe
+        internal_headers = generate_internal_service_headers()
         headers = {
             "Content-Type": "application/json",
             **internal_headers
@@ -126,14 +148,39 @@ async def orchestrate_upload(
             headers["Authorization"] = auth_header
 
         metadata_res = await client.post("http://metadata-api:8000/storage", json=mutation, headers=headers)
-        return metadata_res.json()
+        try:
+            metadata_payload = metadata_res.json()
+        except Exception:
+            metadata_payload = {"errors": [{"message": "Respuesta inválida de Metadata-API"}]}
+
+        upload_data = metadata_payload.get("data", {}).get("uploadScore")
+        has_graphql_errors = bool(metadata_payload.get("errors"))
+
+        if metadata_res.status_code != 200 or has_graphql_errors or not upload_data:
+            # Si falla el registro de metadata, revertimos el archivo subido
+            try:
+                await client.delete(
+                    f"http://files-api:8000/delete/{file_info['object_key']}",
+                    headers=internal_headers,
+                )
+            except Exception:
+                pass
+
+            detail = "No se pudo registrar la partitura en metadata"
+            if has_graphql_errors:
+                detail = metadata_payload["errors"][0].get("message", detail)
+            elif metadata_res.status_code != 200:
+                detail = f"Metadata-API respondió {metadata_res.status_code}"
+
+            raise HTTPException(status_code=502, detail=detail)
+
+        return metadata_payload
 
 @router.delete("/remove/{score_id}")
 async def orchestrate_delete_score(score_id: str, request: Request):
     """Elimina el registro de la DB y el archivo físico de forma coordinada."""
     auth_header = request.headers.get("Authorization")
     internal_headers = generate_internal_service_headers()
-    
     headers = {**internal_headers}
     if auth_header:
         headers["Authorization"] = auth_header
@@ -141,10 +188,11 @@ async def orchestrate_delete_score(score_id: str, request: Request):
     async with httpx.AsyncClient(timeout=20.0) as client:
         # PASO 1: Obtener la URL para extraer el object_key
         query = {"query": "{ scores { id fileUrl } }"}
+        internal_headers = generate_internal_service_headers()
         meta_check = await client.post(
             "http://metadata-api:8000/storage",
             json=query,
-            headers=headers
+            headers={**headers, **internal_headers}
         )
         
         data = meta_check.json()
@@ -169,10 +217,11 @@ async def orchestrate_delete_score(score_id: str, request: Request):
             "variables": {"id": score_id}
         }
         
+        internal_headers = generate_internal_service_headers()
         meta_res = await client.post(
             "http://metadata-api:8000/storage",
             json=delete_payload,
-            headers=headers
+            headers={**headers, **internal_headers}
         )
         meta_data = meta_res.json()
         
@@ -183,11 +232,22 @@ async def orchestrate_delete_score(score_id: str, request: Request):
                 detail=f"Error en Metadata-API: {error_detail}"
             )
 
+        if not meta_data.get("data", {}).get("deleteScore"):
+            raise HTTPException(status_code=500, detail="No se pudo eliminar la partitura en metadata")
+
         # PASO 3: Borrar archivo físico en Files-API
         try:
-            await client.delete(f"http://files-api:8000/delete/{object_key}", headers=internal_headers)
-        except Exception:
-            return {"status": "partial_success", "message": "DB limpia, pero el archivo físico persistió"}
+            internal_headers = generate_internal_service_headers()
+            file_res = await client.delete(f"http://files-api:8000/delete/{object_key}", headers=internal_headers)
+            if file_res.status_code not in (200, 204, 404):
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Files-API no pudo eliminar el archivo ({file_res.status_code})",
+                )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Files-API no pudo eliminar el archivo: {exc}")
         
         return {"status": "success", "message": "Registro y archivo eliminados correctamente"}
 

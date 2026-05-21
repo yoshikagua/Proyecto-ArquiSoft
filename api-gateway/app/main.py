@@ -37,6 +37,7 @@ app.include_router(auth.router)
 app.include_router(storage.router)
 app.include_router(notifications.router)
 app.include_router(payments.router, prefix="/api")
+app.include_router(payments.router)
 
 
 @app.get("/")

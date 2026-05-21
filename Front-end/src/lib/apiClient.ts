@@ -10,7 +10,7 @@
  * En desarrollo: http://localhost:8000
  * En producción: configurar según el servidor de despliegue
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface LoginRequest {
   email: string;
@@ -362,7 +362,7 @@ export const authApi = {
    * POST /api/auth/logout
    */
   logout: async (): Promise<LogoutResponse> => {
-    return fetchApi<LogoutResponse>("/api/auth/logout", {
+    return fetchApi<LogoutResponse>("/auth/logout", {
       method: "POST",
     });
   },
@@ -385,7 +385,7 @@ export const authApi = {
   },
 
   getUsers: async (limit = 50, offset = 0) => {
-    return fetchApi<UserListItem[]>(`/api/auth/users?limit=${limit}&offset=${offset}`, {
+    return fetchApi<UserListItem[]>(`/auth/users?limit=${limit}&offset=${offset}`, {
       method: "GET",
     });
   },
@@ -395,7 +395,7 @@ export const authApi = {
    * GET /api/auth/health
    */
   health: async (): Promise<HealthCheckResponse> => {
-    return fetchApi<HealthCheckResponse>("/api/auth/health", {
+    return fetchApi<HealthCheckResponse>("/auth/health", {
       method: "GET",
     });
   },

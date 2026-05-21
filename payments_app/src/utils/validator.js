@@ -1,5 +1,6 @@
 const validatePaymentData = (data) => {
   const { amount, currency, method } = data;
+  const normalizedAmount = typeof amount === "string" ? Number(amount.trim()) : amount;
 
   if (!amount || !currency || !method) {
     return {
@@ -8,14 +9,14 @@ const validatePaymentData = (data) => {
     };
   }
 
-  if (typeof amount !== "number" || amount <= 0) {
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
     return {
       valid: false,
       message: "El monto debe ser un número mayor que cero",
     };
   }
 
-  return { valid: true };
+  return { valid: true, amount: normalizedAmount };
 };
 
 const validateCreditCardData = (data) => {

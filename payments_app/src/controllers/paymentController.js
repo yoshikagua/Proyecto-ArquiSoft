@@ -31,6 +31,8 @@ const processPayment = async (req, res) => {
       });
     }
 
+    const normalizedAmount = validation.amount;
+
     if (!id_user || !name_user) {
       return res.status(400).json({
         success: false,
@@ -45,13 +47,13 @@ const processPayment = async (req, res) => {
     switch (methodLower) {
       case "mercadopago":
         response = await mercadopagoService.processPayment({
-          amount,
+          amount: normalizedAmount,
           currency,
         });
         break;
       case "nequi":
         response = await nequiService.processPayment({
-          amount,
+          amount: normalizedAmount,
           currency,
         });
         break;
@@ -69,7 +71,7 @@ const processPayment = async (req, res) => {
           });
         }
         response = await creditCardService.processPayment({
-          amount,
+          amount: normalizedAmount,
           currency,
           method: methodLower,
           cardNumber,
@@ -80,7 +82,7 @@ const processPayment = async (req, res) => {
       case "dummy":
       default:
         response = await dummyPaymentService.processPayment({
-          amount,
+          amount: normalizedAmount,
           currency,
           method: methodLower,
         });
@@ -97,7 +99,7 @@ const processPayment = async (req, res) => {
     await Payment.create({
       userId: id_user,
       userName: name_user,
-      amount,
+      amount: normalizedAmount,
       currency,
       method: methodLower,
       status: response.success ? "success" : "failed",

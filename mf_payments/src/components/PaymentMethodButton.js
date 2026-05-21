@@ -3,6 +3,8 @@
 import Image from "next/image";
 
 export function PaymentMethodButton({ method, isSelected, onClick }) {
+  const logoSrc = method.logo?.startsWith("/") ? `/donations${method.logo}` : method.logo;
+
   return (
     <button
       type="button"
@@ -14,9 +16,9 @@ export function PaymentMethodButton({ method, isSelected, onClick }) {
       }`}
     >
       <div className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center bg-white border border-orange-200">
-        {method.logo ? (
+        {logoSrc ? (
           <Image
-            src={method.logo}
+            src={logoSrc}
             alt={method.name}
             width={40}
             height={40}

@@ -32,7 +32,7 @@ const normalizeRole = (roleName?: string): "user" | "admin" | "superadmin" => {
 
 const Perfil = () => {
   const { user, logout, updateUser } = useAuth();
-  const { partituras, favoritas, eliminarPartitura } = usePartituras();
+  const { partituras, favoritas, eliminarPartitura, refreshPartituras } = usePartituras();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const isSuperAdmin = user?.role === "superadmin";
   const navigate = useNavigate();
@@ -209,6 +209,7 @@ const handleEliminarPartitura = async (id: string) => {
     
     // 2. Actualizar el estado global de la aplicación (UI)
     eliminarPartitura(id); 
+    await refreshPartituras();
     
     toast.success("Partitura eliminada correctamente de la biblioteca y el servidor");
   } catch (error) {

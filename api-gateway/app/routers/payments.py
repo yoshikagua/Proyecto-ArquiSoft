@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, HTTPException
 import httpx
 import logging
 from ..config.settings import settings
+from ..utils.security import generate_internal_service_headers
 
 router = APIRouter(
     prefix="/payments",
@@ -37,8 +38,13 @@ async def payments_health():
 async def forward_payment(request: Request):
     """Reenvía la petición de pago al microservicio de Node.js"""
     try:
-        # Obtener el cuerpo de la petición
-        body = await request.json()
+        content_type = request.headers.get("content-type", "")
+
+        if "multipart/form-data" in content_type or "application/x-www-form-urlencoded" in content_type:
+            form = await request.form()
+            body = dict(form)
+        else:
+            body = await request.json()
 
         # 1. Generar cabeceras seguras HMAC
         internal_headers = generate_internal_service_headers()

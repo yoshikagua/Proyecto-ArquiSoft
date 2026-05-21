@@ -35,6 +35,8 @@ export function PaymentForm({ idUser, nameUser }) {
   const [expiry, setExpiry] = useState("");
   const [cvc, setCvc] = useState("");
   const [errors, setErrors] = useState({});
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentSuccess, setPaymentSuccess] = useState(null);
 
   const validateCreditCard = () => {
     const newErrors = {};
@@ -113,6 +115,8 @@ export function PaymentForm({ idUser, nameUser }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setPaymentError("");
+    setPaymentSuccess(null);
 
     // Validar tarjeta de crédito si está seleccionada
     if (!validateCreditCard()) {
@@ -135,9 +139,40 @@ export function PaymentForm({ idUser, nameUser }) {
     }
 
     try {
-      const response = await fetch("/api/payments", {
+      const response = await fetch("/api/payments/", {
         method: "POST",
         body: formData,
+      });
+
+      let result = null;
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      if (!response.ok || result?.success === false) {
+        setPaymentError(
+          result?.message || "No se pudo procesar la donación"
+        );
+        return;
+      }
+
+      const redirectUrl =
+        result?.redirectUrl || result?.data?.redirectUrl || result?.data?.init_point;
+
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+
+      setPaymentSuccess({
+        message: result?.message || "Donación procesada correctamente",
+        transactionId:
+          result?.data?.transactionId ||
+          result?.data?.id ||
+          result?.data?.operationCode ||
+          null,
       });
 
       if (response.redirected) {
@@ -145,6 +180,8 @@ export function PaymentForm({ idUser, nameUser }) {
       }
     } catch (error) {
       console.error("Error:", error);
+      setPaymentError("No se pudo procesar la donación. Intenta nuevamente.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -158,7 +195,7 @@ export function PaymentForm({ idUser, nameUser }) {
             <div className="absolute inset-0 bg-gradient-to-r from-orange-200/40 to-amber-200/40 rounded-full blur-lg"></div>
             <div className="relative bg-white p-3 rounded-full shadow-lg">
               <Image
-                src="/logo.svg"
+                src="/donations/logo.svg"
                 alt="KuisiScore"
                 width={32}
                 height={32}
@@ -179,6 +216,23 @@ export function PaymentForm({ idUser, nameUser }) {
       {/* Card */}
       <div className="bg-white/80 backdrop-blur-sm border border-orange-200/50 rounded-2xl p-6 shadow-xl">
         <form onSubmit={handleSubmit} className="space-y-5">
+          {paymentSuccess && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+              <p>{paymentSuccess.message}</p>
+              {paymentSuccess.transactionId && (
+                <p className="mt-1 text-xs text-emerald-800/80">
+                  ID de transacción: {paymentSuccess.transactionId}
+                </p>
+              )}
+            </div>
+          )}
+
+          {paymentError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {paymentError}
+            </div>
+          )}
+
           {/* Amount and Currency Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Amount */}

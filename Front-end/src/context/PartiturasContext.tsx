@@ -15,6 +15,7 @@ interface PartiturasContextValue {
   toggleLike: (id: string) => Promise<void>;
   addComentario: (id: string, comentario: Partitura["comentarios"][number]) => Promise<void>;
   addPartitura: (partitura: Partitura) => void;
+  refreshPartituras: () => Promise<void>;
   updatePartitura: (id: string, data: any) => Promise<void>;
   incrementDescargas: (id: string) => Promise<void>;
   eliminarPartitura: (id: string) => void;
@@ -68,6 +69,16 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    if (!isAuth) {
+      setPartituras((prev) =>
+        prev.map((p) => ({
+          ...p,
+          liked: false,
+          favorito: false,
+        }))
+      );
+    }
+
     void refreshFromBackend();
   }, [isAuth, user?.id]);
 
@@ -200,6 +211,7 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
         toggleLike,
         addComentario,
         addPartitura,
+        refreshPartituras: refreshFromBackend,
         updatePartitura,
         incrementDescargas,
         eliminarPartitura,
