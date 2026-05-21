@@ -75,7 +75,7 @@ const Login = () => {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.status === 0) {
-          setError("No se pudo conectar con el servidor. Verifica que el gateway esté corriendo en localhost:8000");
+          setError("No se pudo conectar con el servidor. Verifica que desktop-proxy esté disponible en https://localhost:4443 y que Docker Compose esté levantado.");
         } else if (err.status === 401) {
           setError("Correo o contraseña incorrectos. Inténtalo de nuevo.");
         } else if (err.status === 503) {

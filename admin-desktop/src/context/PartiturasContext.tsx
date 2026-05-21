@@ -64,7 +64,8 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
       const mapped = scores.map(mapStorageScoreToPartitura);
       setPartituras(mapped);
     } catch {
-      setPartituras([]);
+      // No borrar el estado actual si la recarga falla: evita que la UI quede vacía
+      // por errores temporales de red o por una lectura más lenta del backend.
     }
   };
 
@@ -215,6 +216,7 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
         updatePartitura,
         incrementDescargas,
         eliminarPartitura,
+        refreshPartituras: refreshFromBackend,
         favoritas,
       }}
     >

@@ -7,7 +7,7 @@
 
 // En Tauri dev:        Vite proxy intercepta /api/* → desktop-proxy (4443) → gateway
 // En Tauri producción: requests van a https://localhost:4443 → desktop-proxy → gateway
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "https://localhost:4443";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "" : "https://localhost:4443");
 
 // ==========================================
 // INTERFACES

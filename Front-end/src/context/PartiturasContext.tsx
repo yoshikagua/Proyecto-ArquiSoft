@@ -80,6 +80,8 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
     }
 
     void refreshFromBackend();
+    const interval = setInterval(() => { void refreshFromBackend(); }, 30000);
+    return () => clearInterval(interval);
   }, [isAuth, user?.id]);
 
   const toggleFavorito = async (id: string) => {

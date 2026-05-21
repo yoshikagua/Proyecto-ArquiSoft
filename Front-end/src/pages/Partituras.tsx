@@ -320,35 +320,35 @@ const PartituraCard = ({ partitura, onClick }: PartituraCardProps) => {
     return (
         <button
             onClick={onClick}
-            className="group text-left rounded-xl border border-secondary/20 bg-card p-6 shadow-sm transition-all duration-200 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5"
+            className="group text-left rounded-xl border border-secondary/20 bg-card p-6 shadow-sm transition-all duration-200 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 flex flex-col h-full"
         >
             {/* Encabezado de la tarjeta: género + año */}
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="rounded-full bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary">
                     {partitura.genero}
                 </span>
-                <span className="text-xs text-muted-foreground">{partitura.anio}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{partitura.anio}</span>
             </div>
 
             {/* Icono decorativo + título */}
             <div className="mb-1 flex items-start gap-3">
-                <span className="mt-0.5 font-serif text-2xl text-secondary">♪</span>
-                <div>
+                <span className="mt-0.5 font-serif text-2xl text-secondary shrink-0">♪</span>
+                <div className="min-w-0 flex-1">
                     {/* Título de la partitura */}
-                    <h2 className="font-serif text-base font-semibold leading-snug text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                    <h2 className="font-serif text-base font-semibold leading-snug text-foreground group-hover:text-primary transition-colors line-clamp-2 break-all">
                         {partitura.titulo}
                     </h2>
                     {/* Autor */}
-                    <p className="mt-0.5 text-sm text-secondary">{partitura.autor}</p>
+                    <p className="mt-0.5 text-sm text-secondary truncate">{partitura.autor}</p>
                 </div>
             </div>
 
             {/* Instrumentos */}
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5 flex-1 content-start">
                 {partitura.instrumentos.map((inst) => (
                     <span
                         key={inst}
-                        className="rounded-md bg-secondary/10 px-2 py-0.5 text-xs text-foreground"
+                        className="rounded-md bg-secondary/10 px-2 py-0.5 text-xs text-foreground h-fit"
                     >
                         {inst}
                     </span>

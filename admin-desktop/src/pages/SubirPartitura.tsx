@@ -137,7 +137,6 @@ const SubirPartitura = () => {
       });
 
       await refreshPartituras();
-
       showToast("¡Partitura subida exitosamente!", "success", `"${data.titulo}" ya está disponible en la biblioteca.`);
       reset();
       setArchivoSeleccionado(null);

@@ -279,7 +279,7 @@ const DetallePartitura = () => {
                     </div>
 
                     {/* Título principal */}
-                    <h1 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
+                    <h1 className="font-serif text-3xl font-bold text-foreground sm:text-4xl break-words">
                         {partituraBase.titulo}
                     </h1>
 
