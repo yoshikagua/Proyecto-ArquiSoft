@@ -25,7 +25,7 @@ type SubirPartituraData = z.infer<typeof subirPartituraSchema>;
 
 const SubirPartitura = () => {
   const navigate = useNavigate();
-  const { addPartitura } = usePartituras();
+  const { addPartitura, refreshPartituras } = usePartituras();
 
   const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(null);
   const [archivoError, setArchivoError] = useState("");
@@ -136,6 +136,7 @@ const SubirPartitura = () => {
         comentarios: [],
       });
 
+      await refreshPartituras();
       showToast("¡Partitura subida exitosamente!", "success", `"${data.titulo}" ya está disponible en la biblioteca.`);
       reset();
       setArchivoSeleccionado(null);

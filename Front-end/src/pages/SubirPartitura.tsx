@@ -68,7 +68,7 @@ type SubirPartituraData = z.infer<typeof subirPartituraSchema>;
 
 const SubirPartitura = () => {
     const navigate = useNavigate();
-    const { addPartitura } = usePartituras();
+    const { addPartitura, refreshPartituras } = usePartituras();
 
     // ── Estado para el archivo PDF ──
     /** Referencia al archivo seleccionado por el usuario */
@@ -204,6 +204,8 @@ const SubirPartitura = () => {
                 descripcion: data.descripcion || "",
                 comentarios: [],
             });
+
+            await refreshPartituras();
 
             toast.success("¡Partitura subida exitosamente!", {
                 description: `"${data.titulo}" ya está disponible en la biblioteca.`,

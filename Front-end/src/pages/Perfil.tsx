@@ -340,21 +340,20 @@ const handleEliminarPartitura = async (id: string) => {
           <TabsContent value="partituras">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {misPartituras.map((p) => (
-                <Card key={p.id} className="transition-shadow hover:shadow-md">
+                <Card key={p.id} className="transition-shadow hover:shadow-md flex flex-col">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between min-w-0">
+                    <div className="flex items-start justify-between gap-2">
                       <CardTitle
-                        title={p.titulo}
-                        className="font-serif text-base leading-tight cursor-pointer hover:text-primary transition-colors truncate"
+                        className="font-serif text-base leading-tight cursor-pointer hover:text-primary transition-colors line-clamp-2 break-all min-w-0 h-10"
                         onClick={() => navigate(`/partituras/${p.id}`)}
                       >
                         {p.titulo}
                       </CardTitle>
-                      <Badge variant="secondary" className="ml-2 shrink-0 text-xs">{p.genero}</Badge>
+                      <Badge variant="secondary" className="shrink-0 text-xs mt-0.5">{p.genero}</Badge>
                     </div>
-                    <CardDescription>{p.autor} · {p.anio}</CardDescription>
+                    <CardDescription className="truncate">{p.autor} · {p.anio}</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="mt-auto">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <span>❤️ {p.likes}</span>

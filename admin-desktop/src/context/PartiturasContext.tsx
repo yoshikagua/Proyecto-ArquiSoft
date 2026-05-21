@@ -18,6 +18,7 @@ interface PartiturasContextValue {
   updatePartitura: (id: string, data: any) => Promise<void>;
   incrementDescargas: (id: string) => Promise<void>;
   eliminarPartitura: (id: string) => void;
+  refreshPartituras: () => Promise<void>;
   /** Partituras marcadas como favoritas */
   favoritas: Partitura[];
 }
@@ -69,6 +70,8 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     void refreshFromBackend();
+    const interval = setInterval(() => { void refreshFromBackend(); }, 30000);
+    return () => clearInterval(interval);
   }, [isAuth, user?.id]);
 
   const toggleFavorito = async (id: string) => {
@@ -203,6 +206,7 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
         updatePartitura,
         incrementDescargas,
         eliminarPartitura,
+        refreshPartituras: refreshFromBackend,
         favoritas,
       }}
     >
