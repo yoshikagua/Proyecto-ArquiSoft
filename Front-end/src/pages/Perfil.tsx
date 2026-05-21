@@ -111,14 +111,13 @@ const Perfil = () => {
 
       try {
         const me = await authApi.getCurrentUser();
-        const fullName = `${me.first_name || ""} ${me.last_name || ""}`.trim();
         setNombre(me.first_name || user.nombre || "");
         setApellido(me.last_name || user.apellido || "");
         setBio(me.profile_info || "");
 
         updateUser({
           id: me.id,
-          nombre: fullName || user.nombre,
+          nombre: me.first_name || user.nombre,
           apellido: me.last_name || user.apellido,
           email: me.email || user.email,
           bio: me.profile_info || "",
