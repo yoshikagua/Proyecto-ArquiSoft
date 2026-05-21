@@ -503,7 +503,7 @@ uploadScore: async (request: UploadScoreRequest): Promise<StorageScore> => {
     formData.append("instruments", JSON.stringify(request.instruments || []));
     formData.append("file", request.file);
 
-    const response = await fetch(`${API_BASE_URL}/api/storage/upload-score`, {
+    const response = await fetch(`${API_BASE_URL}/storage/upload-score`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${token}` }, // El navegador pone el Content-Type multipart/form-data solo
       body: formData,
