@@ -36,6 +36,7 @@ bun.lockb
 .env.local
 .claude
 
+
 # Editor
 .vscode/
 .vscode/*

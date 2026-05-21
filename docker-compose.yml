@@ -70,6 +70,8 @@ services:
     environment:
       DATABASE_URL: postgres://authuser:authpass@postgres:5432/auth_db
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
+      # NUEVO: Capa de Validación Interna
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-super-secret-internal-cluster-key-change-me}
       NOTIFICATION_URL: http://notification-producer:8000
     depends_on:
       postgres:
@@ -92,6 +94,8 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       FRONTEND_URL: http://localhost:8080
+      # NUEVO: Listo para cuando implementes la validación en Node.js
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-super-secret-internal-cluster-key-change-me}
     depends_on:
       payments-postgres:
         condition: service_healthy
@@ -111,13 +115,14 @@ services:
     environment:
       NODE_ENV: development
       PAYMENTS_API_URL: http://payments_app:3000
-    ports:
-      - "3003:3000"
+    # 🔒 CAMBIO DE ARQUITECTURA: Eliminamos ports "3003:3000" para evitar accesos no cifrados por fuera del proxy
+    expose:
+      - "3000"
     depends_on:
       - payments_app
     networks:
-      - edge-network
-      - services-network
+      - edge-network       # Conexión con el Proxy
+      - services-network   # Conexión con payments_app
 
   metadata-api:
     build:
@@ -130,6 +135,8 @@ services:
       JWT_ALGORITHM: HS256
       BUCKET_NAME: scores
       MINIO_PUBLIC_URL: http://localhost:9000
+      # 🔒 AÑADIDO: Mapeo del secreto para validación HMAC
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
     depends_on:
       mongo:
         condition: service_started
@@ -146,6 +153,8 @@ services:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: password
       BUCKET_NAME: scores
+      # 🔒 AÑADIDO: Mapeo del secreto para validación HMAC
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
     depends_on:
       minio:
         condition: service_started
@@ -166,6 +175,8 @@ services:
     environment:
       RABBITMQ_HOST: notification-rabbitmq
       RABBITMQ_PORT: 5672
+      # 🔒 AÑADIDO: Requerido por router.php (getenv('INTERNAL_SERVICE_SECRET'))
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
     networks:
       - services-network
       - messaging-network
@@ -234,6 +245,57 @@ services:
 
   # === CAPA DE EXPOSICIÓN (solo servicios de entrada al sistema) ===
 
+# === EL ESCUDO PERIMETRAL: STANDALONE WAF ===
+  standalone-waf:
+    image: owasp/modsecurity-crs:nginx
+    container_name: proyectosoft-standalone-waf
+    ports:
+      - "80:8080"
+      - "443:8443"
+    environment:
+      - PARANOIA=1
+      - BACKEND=http://web-reverse-proxy:80
+    volumes:
+      - ./certs/gateway.crt:/etc/nginx/certs/tls.crt:ro
+      - ./certs/gateway.key:/etc/nginx/certs/tls.key:ro
+      # regla personalizada para pesistencia de graphql 
+      - ./coraza/graphql-before.conf:/etc/modsecurity.d/owasp-crs/plugins/graphql-before.conf:ro
+      - ./coraza/methods-before.conf:/etc/modsecurity.d/owasp-crs/plugins/methods-before.conf:ro
+    depends_on:
+      - web-reverse-proxy
+    networks:
+      - edge-network
+
+  # === CAPA DE EXPOSICIÓN INTERNA ===
+  web-reverse-proxy:
+    image: nginx:alpine
+    container_name: proyectosoft-secure-proxy
+    expose:
+      - "443"
+      - "80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - api-gateway
+      - mf_payments
+      - frontend
+    networks:
+      - edge-network
+
+  desktop-proxy:
+    image: nginx:alpine
+    container_name: proyectosoft-desktop-proxy
+    ports:
+      - "4443:4443" # Canal seguro HTTPS exclusivo para admin-desktop (Tauri)
+    volumes:
+      - ./nginx-desktop.conf:/etc/nginx/nginx.conf:ro
+      - ./certs-desktop:/etc/nginx/certs-desktop:ro
+    depends_on:
+      - api-gateway
+    networks:
+      - edge-network
+
   api-gateway:
     build:
       context: ./api-gateway
@@ -245,9 +307,13 @@ services:
       NOTIFICATION_URL: http://notification-producer:8000
       METADATA_API_URL: http://metadata-api:8000/storage
       FILES_API_URL: http://files-api:8000
-      FRONTEND_URL: http://localhost:8080
-    ports:
-      - "8000:8000"
+      FRONTEND_URL: https://localhost:8080 # Cambiado a protocolo seguro HTTPS
+      # NUEVO: Variables del Emisor del Canal Seguro Interno
+      INTERNAL_SERVICE_NAME: "api-gateway"
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-super-secret-internal-cluster-key-change-me}
+    # CAMBIO DE ARQUITECTURA: Eliminamos ports "8000:8000". Nadie entra al Gateway sin pasar por Nginx TLS.
+    expose:
+      - "8000"
     depends_on:
       user-api:
         condition: service_started
@@ -266,9 +332,11 @@ services:
       context: ./Front-end
     container_name: proyectosoft-frontend
     environment:
-      VITE_API_URL: http://localhost:8000
-    ports:
-      - "8080:8080"
+      # 🔒 Las llamadas de Axios/Fetch ahora viajan seguras usando rutas relativas o HTTPS al Proxy
+      VITE_API_URL: https://localhost/api
+    # 🔒 CAMBIO DE ARQUITECTURA: Eliminamos ports "8080:8080" para obligar a pasar por Nginx TLS
+    expose:
+      - "8080"
     depends_on:
       api-gateway:
         condition: service_started

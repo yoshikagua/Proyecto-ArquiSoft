@@ -1,21 +1,55 @@
 # Proyecto-ArquiSoft/files-api/app/main.py
-from fastapi import FastAPI, UploadFile, File, HTTPException
+import hmac
+import hashlib
+import os
+import time
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Response
 from app.core.storage import init_bucket, minio_client 
 from app.core.config import settings
 import uuid
 import magic 
-import hashlib
+import hashlib as py_hashlib
 from io import BytesIO
 from minio.error import S3Error
 
 app = FastAPI(title="Files Storage Service")
 
-# Solo permitimos PDFs reales
 ALLOWED_MIME_TYPES = ["application/pdf"]
+INTERNAL_SECRET = os.getenv("INTERNAL_SERVICE_SECRET", "super-secret-internal-cluster-key-change-me").encode()
+
+@app.middleware("http")
+async def verify_gateway_signature(request: Request, call_next):
+    if request.url.path in ["/health", "/docs", "/openapi.json"]:
+        return await call_next(request)
+        
+    service_name = request.headers.get("X-Service-Name")
+    timestamp_str = request.headers.get("X-Service-Timestamp")
+    signature_hex = request.headers.get("X-Service-Signature")
+    
+    if not service_name or not timestamp_str or not signature_hex:
+        return Response(content='{"detail": "Falta firma de canal seguro interno"}', status_code=403, media_type="application/json")
+        
+    if service_name != "api-gateway":
+        return Response(content='{"detail": "Origen de petición no autorizado"}', status_code=403, media_type="application/json")
+        
+    try:
+        timestamp = int(timestamp_str)
+        if abs(int(time.time()) - timestamp) > 15:
+            return Response(content='{"detail": "La firma de la petición ha expirado"}', status_code=403, media_type="application/json")
+    except ValueError:
+        return Response(content='{"detail": "Timestamp inválido"}', status_code=403, media_type="application/json")
+        
+    message = f"{service_name}:{timestamp_str}".encode()
+    expected_signature = hmac.new(INTERNAL_SECRET, message, hashlib.sha256).hexdigest()
+    
+    if not hmac.compare_digest(expected_signature, signature_hex):
+        return Response(content='{"detail": "Firma HMAC inválida"}', status_code=403, media_type="application/json")
+        
+    return await call_next(request)
 
 @app.on_event("startup")
 async def startup():
-    init_bucket() 
+    init_bucket()
 
 async def validate_file_content(file: UploadFile):
     # Leer los primeros bytes para detectar la firma real

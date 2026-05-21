@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException, Request, Response, UploadFile, Fil
 import httpx
 import json
 from ..config.settings import settings
+# IMPORTAR HELPER DE SEGURIDAD INTERNA
+from ..utils.security import generate_internal_service_headers
 
 router = APIRouter(
     prefix="/api/storage",
@@ -15,7 +17,7 @@ HOP_BY_HOP_HEADERS = {
 }
 
 def _filter_response_headers(headers: httpx.Headers) -> dict[str, str]:
-    """Filtra cabeceras hop-by-hop para evitar conflictos en el proxy[cite: 13]."""
+    """Filtra cabeceras hop-by-hop para evitar conflictos en el proxy."""
     return {
         key: value
         for key, value in headers.items()
@@ -24,11 +26,14 @@ def _filter_response_headers(headers: httpx.Headers) -> dict[str, str]:
 
 @router.get("/health")
 async def storage_health() -> dict[str, str]:
-    """Verifica la conectividad con los microservicios internos[cite: 13]."""
+    """Verifica la conectividad con los microservicios internos."""
     try:
+        # Generar cabeceras internas para el chequeo de salud
+        internal_headers = generate_internal_service_headers()
+        
         async with httpx.AsyncClient(timeout=10.0) as client:
-            meta_res = await client.get("http://metadata-api:8000/health")
-            files_res = await client.get("http://files-api:8000/health")
+            meta_res = await client.get("http://metadata-api:8000/health", headers=internal_headers)
+            files_res = await client.get("http://files-api:8000/health", headers=internal_headers)
             
         return {
             "status": "ok",
@@ -50,16 +55,21 @@ async def orchestrate_upload(
     instruments: str = Form("[]"),
     file: UploadFile = File(...)
 ):
-    """Orquesta la subida de archivos y el registro de metadatos[cite: 13]."""
+    """Orquesta la subida de archivos y el registro de metadatos."""
     auth_header = request.headers.get("Authorization")
+    
+    # Generar firmas para los canales internos
+    internal_headers = generate_internal_service_headers()
     
     async with httpx.AsyncClient(timeout=120.0) as client:
         # --- PASO 1: Subida a Files-API ---
         try:
             file_content = await file.read()
+            # Anexamos las firmas HMAC a la petición multipart de archivos
             files_res = await client.post(
                 "http://files-api:8000/upload",
-                files={"file": (file.filename, file_content, file.content_type)}
+                files={"file": (file.filename, file_content, file.content_type)},
+                headers=internal_headers
             )
             
             if files_res.status_code != 200:
@@ -107,7 +117,11 @@ async def orchestrate_upload(
             }
         }
 
-        headers = {"Content-Type": "application/json"}
+        # Combinar Content-Type, firmas HMAC internas y token de usuario externo si existe
+        headers = {
+            "Content-Type": "application/json",
+            **internal_headers
+        }
         if auth_header:
             headers["Authorization"] = auth_header
 
@@ -116,16 +130,21 @@ async def orchestrate_upload(
 
 @router.delete("/remove/{score_id}")
 async def orchestrate_delete_score(score_id: str, request: Request):
-    """Elimina el registro de la DB y el archivo físico de forma coordinada[cite: 13]."""
+    """Elimina el registro de la DB y el archivo físico de forma coordinada."""
     auth_header = request.headers.get("Authorization")
+    internal_headers = generate_internal_service_headers()
+    
+    headers = {**internal_headers}
+    if auth_header:
+        headers["Authorization"] = auth_header
     
     async with httpx.AsyncClient(timeout=20.0) as client:
-        # PASO 1: Obtener la URL para extraer el object_key[cite: 13]
+        # PASO 1: Obtener la URL para extraer el object_key
         query = {"query": "{ scores { id fileUrl } }"}
         meta_check = await client.post(
             "http://metadata-api:8000/storage",
             json=query,
-            headers={"Authorization": auth_header} if auth_header else {}
+            headers=headers
         )
         
         data = meta_check.json()
@@ -140,7 +159,7 @@ async def orchestrate_delete_score(score_id: str, request: Request):
             
         object_key = target_score["fileUrl"].split("/")[-1]
 
-        # PASO 2: Borrar en Metadata-API (MongoDB)[cite: 13]
+        # PASO 2: Borrar en Metadata-API (MongoDB)
         delete_payload = {
             "query": """
                 mutation Resborrar($id: String!) {
@@ -153,7 +172,7 @@ async def orchestrate_delete_score(score_id: str, request: Request):
         meta_res = await client.post(
             "http://metadata-api:8000/storage",
             json=delete_payload,
-            headers={"Authorization": auth_header} if auth_header else {}
+            headers=headers
         )
         meta_data = meta_res.json()
         
@@ -164,9 +183,9 @@ async def orchestrate_delete_score(score_id: str, request: Request):
                 detail=f"Error en Metadata-API: {error_detail}"
             )
 
-        # PASO 3: Borrar archivo físico en Files-API[cite: 13]
+        # PASO 3: Borrar archivo físico en Files-API
         try:
-            await client.delete(f"http://files-api:8000/delete/{object_key}")
+            await client.delete(f"http://files-api:8000/delete/{object_key}", headers=internal_headers)
         except Exception:
             return {"status": "partial_success", "message": "DB limpia, pero el archivo físico persistió"}
         
@@ -178,12 +197,15 @@ async def orchestrate_delete_score(score_id: str, request: Request):
 @router.get("/") # Maneja /api/storage/
 async def handle_graphql_root_get(request: Request):
     """Túnel directo para abrir GraphiQL desde el navegador en el gateway."""
+    client_headers = {k: v for k, v in request.headers.items() if k.lower() != "host"}
+    internal_headers = generate_internal_service_headers()
+    
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.request(
             method="GET",
             url="http://metadata-api:8000/storage",
             params=request.query_params,
-            headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
+            headers={**client_headers, **internal_headers},
         )
     return Response(
         content=response.content,
@@ -197,12 +219,15 @@ async def handle_graphql_root_get(request: Request):
 @router.head("/") # Maneja /api/storage/ en verificaciones HEAD
 async def handle_graphql_root_head(request: Request):
     """Expone los mismos headers que GET sin incluir body."""
+    client_headers = {k: v for k, v in request.headers.items() if k.lower() != "host"}
+    internal_headers = generate_internal_service_headers()
+    
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.request(
             method="GET",
             url="http://metadata-api:8000/storage",
             params=request.query_params,
-            headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
+            headers={**client_headers, **internal_headers},
         )
     return Response(
         content=b"",
@@ -211,16 +236,19 @@ async def handle_graphql_root_head(request: Request):
         media_type=response.headers.get("content-type"),
     )
 
-@router.post("")  # Maneja /api/storage[cite: 14]
-@router.post("/") # Maneja /api/storage/[cite: 14]
+@router.post("")  # Maneja /api/storage
+@router.post("/") # Maneja /api/storage/
 async def handle_graphql_root(request: Request):
-    """Túnel directo para peticiones GraphQL desde el frontend[cite: 14]."""
+    """Túnel directo para peticiones GraphQL desde el frontend."""
+    client_headers = {k: v for k, v in request.headers.items() if k.lower() != "host"}
+    internal_headers = generate_internal_service_headers()
+    
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.request(
             method="POST",
             url="http://metadata-api:8000/storage",
             content=await request.body(),
-            headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
+            headers={**client_headers, **internal_headers},
         )
     return Response(
         content=response.content,
@@ -231,8 +259,11 @@ async def handle_graphql_root(request: Request):
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 async def proxy_music_storage(request: Request, path: str = "") -> Response:
-    """Proxy genérico para rutas adicionales[cite: 13]."""
+    """Proxy genérico para rutas adicionales."""
     upstream_url = f"http://metadata-api:8000/storage/{path}" if path else "http://metadata-api:8000/storage"
+    
+    client_headers = {k: v for k, v in request.headers.items() if k.lower() != "host"}
+    internal_headers = generate_internal_service_headers()
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -241,7 +272,7 @@ async def proxy_music_storage(request: Request, path: str = "") -> Response:
                 url=upstream_url,
                 params=request.query_params,
                 content=await request.body(),
-                headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
+                headers={**client_headers, **internal_headers},
             )
         
         return Response(

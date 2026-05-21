@@ -51,8 +51,8 @@ const Navbar = () => {
         {
             label: "Donaciones",
             path: user
-                ? `http://localhost:3003/payments?id_user=${user.id}&name_user=${user.nombre}`
-                : "http://localhost:3003/payments",
+                ? `https://localhost/donations/payments?id_user=${user.id}&name_user=${user.nombre}`
+                : "https://localhost/donations/payments",
             icon: <CreditCard className="h-4 w-4" />
         },
         ...(user ? [{ label: "Subir Partitura", path: "/subir-partitura", icon: <Upload className="h-4 w-4" /> }] : []),

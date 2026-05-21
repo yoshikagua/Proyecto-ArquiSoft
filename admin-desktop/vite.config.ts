@@ -35,11 +35,13 @@ export default defineConfig(async () => ({
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
-    // Proxy para redirigir peticiones /api al API Gateway (funciona en dev y build)
+    // Proxy: redirige /api/* → desktop-proxy (HTTPS 4443) → api-gateway
+    // secure: false permite el certificado autofirmado en el servidor Vite de dev
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: "https://localhost:4443",
         changeOrigin: true,
+        secure: false,
       },
     },
   },

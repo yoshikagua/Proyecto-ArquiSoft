@@ -21,6 +21,7 @@ export function PaymentMethodButton({ method, isSelected, onClick }) {
             width={40}
             height={40}
             className="object-contain"
+            unoptimized
           />
         ) : (
           <span className="text-2xl">{method.icon}</span>

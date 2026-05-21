@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     jwt_secret: str = "your-default-secret-key-change-me"
     jwt_algorithm: str = "HS256"
     
+    # NUEVO: Seguridad Canal Interno (Service-to-Service)
+    internal_service_secret: str = "super-secret-internal-cluster-key-change-me"
+    internal_service_name: str = "api-gateway"
+    
     # URL de servicios (Nombres de servicio en Docker)
     user_api_url: str = "http://auth-api:3000" # Asumiendo el contenedor de Rust
     metadata_api_url: str = "http://metadata-api:8000/storage"

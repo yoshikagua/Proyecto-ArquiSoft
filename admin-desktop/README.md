@@ -83,12 +83,66 @@ xcode-select --install
 
 ## Backend requerido
 
-La app se conecta al API Gateway del proyecto principal (**Proyecto-ArquiSoft**). Debe estar corriendo antes de abrir la app de escritorio.
+La app se conecta al API Gateway a través de un **proxy inverso dedicado** (`desktop-proxy`) con canal seguro TLS, completamente separado del proxy del frontend web. Todos los servicios deben estar corriendo antes de abrir la app.
 
 ```bash
-# Desde la raíz de Proyecto-ArquiSoft
+# Desde la raíz del proyecto (donde está el docker-compose.yml)
 docker compose up
 ```
+
+### Arquitectura de conexión
+
+```
+[admin-desktop]  →  https://localhost:4443  →  [desktop-proxy (nginx TLS)]  →  [api-gateway]
+```
+
+El `desktop-proxy` escucha exclusivamente en el puerto **4443** con HTTPS (TLS 1.2/1.3) y enruta únicamente las peticiones del panel de administración hacia el API Gateway. Es independiente del proxy del frontend web (puerto 443).
+
+---
+
+## Paso único: confiar en el certificado TLS (por máquina)
+
+Dado que el canal seguro usa un certificado autofirmado, el sistema operativo debe registrarlo como confiable **una sola vez por equipo**. Sin este paso, el motor interno de Tauri rechazará las conexiones HTTPS al proxy.
+
+**Paso 1 — Generar el certificado del desktop-proxy.**  
+Los certificados ya están en `certs-desktop/` dentro del repositorio. Si por alguna razón necesitas regenerarlos, ejecuta desde la raíz del proyecto con Docker corriendo:
+
+```bash
+docker run --rm -v "%CD%\certs-desktop:/certs" alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/desktop.key -out /certs/desktop.crt -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+**Paso 2 — Importar el certificado según tu sistema operativo.**
+
+#### Windows
+Abre **PowerShell como Administrador** y ejecuta:
+
+```powershell
+Import-Certificate -FilePath "<ruta-al-proyecto>\certs-desktop\desktop.crt" -CertStoreLocation "Cert:\LocalMachine\Root"
+```
+
+> Reemplaza `<ruta-al-proyecto>` con la ruta donde tengas clonado el repositorio.
+
+Si aparece un `Thumbprint` con un hash largo, fue exitoso.
+
+#### Ubuntu / Debian
+```bash
+sudo cp certs-desktop/desktop.crt /usr/local/share/ca-certificates/desktop.crt
+sudo update-ca-certificates
+```
+
+#### Fedora / RHEL / Arch
+```bash
+sudo cp certs-desktop/desktop.crt /etc/pki/ca-trust/source/anchors/desktop.crt
+sudo update-ca-trust
+```
+
+**Paso 3 — Levantar Docker** para que el desktop-proxy tome el certificado:
+
+```bash
+docker compose up -d
+```
+
+> Una vez importado, cualquier build del ejecutable funcionará en esa máquina sin repetir estos pasos.
 
 ---
 
@@ -199,7 +253,8 @@ admin-desktop/
 | Build | Vite |
 | Desktop runtime | Tauri 2 |
 | Backend nativo | Rust |
-| API | REST + GraphQL → API Gateway en `localhost:8000` |
+| API | REST + GraphQL → desktop-proxy (TLS) → API Gateway |
+| Proxy | nginx (canal seguro TLS en `localhost:4443`) |
 
 ---
 

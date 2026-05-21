@@ -39,13 +39,21 @@ async def forward_payment(request: Request):
     try:
         # Obtener el cuerpo de la petición
         body = await request.json()
+
+        # 1. Generar cabeceras seguras HMAC
+        internal_headers = generate_internal_service_headers()
+        
+        headers = {
+            **internal_headers,
+            "Content-Type": "application/json"
+        }
         
         async with httpx.AsyncClient() as client:
             # Reenviar al microservicio de Node.js en la ruta /payments
             response = await client.post(
                 f"{settings.payments_url}/payments",
                 json=body,
-                headers={"Content-Type": "application/json"},
+                headers=headers, # <--- Inyectadas en la red interna de Docker
                 timeout=30.0
             )
             

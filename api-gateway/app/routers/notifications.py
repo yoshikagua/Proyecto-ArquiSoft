@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request
 import httpx
 from ..config.settings import settings
+# Importar el helper para firmar las peticiones del canal seguro
+from ..utils.security import generate_internal_service_headers 
 
 router = APIRouter(
     prefix="/api/notifications",
@@ -16,10 +18,19 @@ async def send_notification(request: Request):
     """
     try:
         body = await request.json()
+        
+        # Generar las cabeceras de firma HMAC-SHA256
+        internal_headers = generate_internal_service_headers()
+        headers = {
+            **internal_headers,
+            "Content-Type": "application/json"
+        }
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{settings.notification_url}",
                 json=body,
+                headers=headers,  #  Inyectar firmas en la cabecera
                 timeout=30.0
             )
         
@@ -43,8 +54,14 @@ async def send_notification(request: Request):
 async def health_check():
     """Verificar estado del servicio de notificaciones"""
     try:
+        #  Firmar también el Health Check si el microservicio PHP requiere validación global
+        headers = generate_internal_service_headers()
+
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{settings.notification_url}/status")
+            response = await client.get(
+                f"{settings.notification_url}/status",
+                headers=headers  #  Adjuntar firmas
+            )
             status = "online" if response.status_code == 200 else f"offline_{response.status_code}"
     except Exception:
         status = "unreachable"

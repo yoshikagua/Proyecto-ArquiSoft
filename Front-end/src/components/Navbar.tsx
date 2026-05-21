@@ -52,8 +52,8 @@ const Navbar = () => {
         { 
             label: "Donaciones", 
             path: user 
-                ? `http://localhost:3003/payments?id_user=${user.id}&name_user=${user.nombre}`
-                : "http://localhost:3003/payments", 
+                ? `/donations/payments?id_user=${user.id}&name_user=${encodeURIComponent(user.nombre)}`
+                : "/donations/payments",
             icon: <CreditCard className="h-4 w-4" /> 
         },
         ...(user ? [{ label: "Subir Partitura", path: "/subir-partitura", icon: <Upload className="h-4 w-4" /> }] : []),
@@ -91,7 +91,7 @@ const Navbar = () => {
                         <button
                             key={item.path}
                             onClick={() => {
-                                if (item.path.startsWith("http") || item.path.startsWith("/api/")) {
+                                if (item.path.startsWith("http") || item.path.startsWith("/api/") || item.path.startsWith("/donations/")) {
                                     window.location.href = item.path;
                                 } else {
                                     navigate(item.path);
@@ -226,7 +226,7 @@ const Navbar = () => {
                             <button
                                 key={item.path}
                                 onClick={() => {
-                                    if (item.path.startsWith("http") || item.path.startsWith("/api/")) {
+                                    if (item.path.startsWith("http") || item.path.startsWith("/api/") || item.path.startsWith("/donations/")) {
                                         window.location.href = item.path;
                                     } else {
                                         navigate(item.path);

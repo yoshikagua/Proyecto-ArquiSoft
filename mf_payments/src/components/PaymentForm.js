@@ -163,6 +163,7 @@ export function PaymentForm({ idUser, nameUser }) {
                 width={32}
                 height={32}
                 priority
+                unoptimized
               />
             </div>
           </div>
