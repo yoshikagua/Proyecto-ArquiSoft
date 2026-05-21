@@ -326,7 +326,7 @@ const DetallePartitura = () => {
                             Descargar PDF
                         </button>
 
-                        {/* Botón editar (solo para el creador) */}
+                        {/* Botón editar (solo el creador de la partitura puede editarla) */}
                         {user && (partituraBase.uploadedBy === user.id?.toString() || partituraBase.uploadedBy === user.email) && (
                             <button
                                 onClick={() => navigate(`/editar-partitura/${partituraBase.id}`)}

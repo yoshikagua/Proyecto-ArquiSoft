@@ -118,7 +118,7 @@ const Perfil = () => {
 
         updateUser({
           id: me.id,
-          nombre: fullName || user.nombre,
+          nombre: me.first_name || user.nombre,
           apellido: me.last_name || user.apellido,
           email: me.email || user.email,
           bio: me.profile_info || "",
