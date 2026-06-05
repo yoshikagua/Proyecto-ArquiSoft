@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     MINIO_PUBLIC_URL: str  
     BUCKET_NAME: str = "scores"
 
+    REDIS_HOST: str = "caching-redis"
+    REDIS_PORT: int = 6379
+
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
 

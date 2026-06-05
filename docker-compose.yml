@@ -61,6 +61,12 @@ services:
     networks:
       - data-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: caching-redis
+    networks:
+      - data-network
+
   # === CAPA DE APLICACIÓN (solo acceso interno) ===
 
   user-api:
@@ -128,6 +134,8 @@ services:
     environment:
       MONGO_URI: mongodb://proyectosoft-mongo:27017
       DB_NAME: music_db
+      REDIS_HOST: caching-redis
+      REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
       JWT_ALGORITHM: HS256
       BUCKET_NAME: scores

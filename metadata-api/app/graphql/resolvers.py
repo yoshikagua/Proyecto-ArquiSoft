@@ -1,5 +1,7 @@
 import uuid
 import strawberry
+import json
+from app.core.cache import redis_client
 from strawberry.types import Info
 from jose import jwt, JWTError
 from fastapi import HTTPException
@@ -7,7 +9,7 @@ from app.schemas.score_schema import ScoreType, CommentType
 from app.db.mongo import get_scores_collection
 from app.models.score_model import build_score_document
 from app.core.config import settings
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 
@@ -48,6 +50,42 @@ DEFAULT_FORMATS = [
     "Ensamble",
     "Solista",
 ]
+
+
+def serialize_docs(docs):
+    serialized = []
+    for doc in docs:
+        comments = [
+            {
+                "id": str(comment.get("id", "")),
+                "usuario": comment.get("usuario", "Usuario"),
+                "avatar": comment.get("avatar", "U"),
+                "texto": comment.get("texto", ""),
+                "fecha": comment.get("fecha", datetime.now(timezone.utc).isoformat()),
+            }
+            for comment in doc.get("comments", [])
+        ]
+
+        doc_copy = {
+            "id": str(doc["_id"]),
+            "title": doc.get("title", "Sin título"),
+            "composer": doc.get("composer", "Desconocido"),
+            "genre": doc.get("genre", ""),
+            "format": doc.get("format", ""),
+            "year": doc.get("year", 0),
+            "uploaded_by": str(doc.get("user_id", "")),
+            "file_url": f"{settings.MINIO_PUBLIC_URL}/{settings.BUCKET_NAME}/{doc['object_key']}",
+            "description": doc.get("description", ""),
+            "instruments": doc.get("instruments", []),
+            "likes": int(doc.get("likes_count", 0)),
+            "downloads": int(doc.get("downloads", 0)),
+            "comentarios": comments,
+            "liked_by_ids": [str(uid) for uid in doc.get("liked_by", [])],
+            # CORREGIDO AQUÍ: Se eliminó la coma extra antes de cerrar el paréntesis
+            "favorited_by_ids": [str(uid) for uid in doc.get("favorited_by", [])],
+        }
+        serialized.append(doc_copy)
+    return serialized
 
 
 def _parse_user_id_from_request(info: Info, required: bool = False) -> str | None:
@@ -92,7 +130,7 @@ def _serialize_score(doc: dict, requester_user_id: str | None) -> ScoreType:
             usuario=comment.get("usuario", "Usuario"),
             avatar=comment.get("avatar", "U"),
             texto=comment.get("texto", ""),
-            fecha=comment.get("fecha", datetime.utcnow().isoformat()),
+            fecha=comment.get("fecha", datetime.now(timezone.utc).isoformat()),
         )
         for comment in doc.get("comments", [])
     ]
@@ -149,36 +187,90 @@ async def _get_score_catalog_values() -> tuple[list[str], list[str], list[str]]:
 
     return normalized_genres, normalized_instruments, normalized_formats
 
+
 @strawberry.type
 class Query:
-
     @strawberry.field
     async def scores(self, info: Info) -> list[ScoreType]:
         requester_user_id = _parse_user_id_from_request(info, required=False)
-        collection = get_scores_collection()
-        docs = await collection.find().to_list(length=None)
 
-        return [_serialize_score(doc, requester_user_id) for doc in docs]
+        # 1. Recuperar el catálogo base desde Redis
+        cached = await redis_client.get("scores")
+        if cached:
+            docs = json.loads(cached)
+        else:
+            collection = get_scores_collection()
+            docs = await collection.find().to_list(length=None)
+            # Pasamos la función optimizada que formatea la estructura base
+            docs = serialize_docs(docs)
+            await redis_client.setex("scores", 300, json.dumps(docs))
+
+        # 2. Inyección dinámica ultra veloz (Complejidad O(1) usando sets)
+        result = []
+        for doc in docs:
+            # Convertir listas a Set de Python permite búsquedas instantáneas
+            liked_set = set(doc["liked_by_ids"])
+            fav_set = set(doc["favorited_by_ids"])
+
+            # Reconstruimos los comentarios al tipo de Strawberry
+            comments_obj = [CommentType(**c) for c in doc["comentarios"]]
+
+            # Construimos el ScoreType inyectando únicamente el booleano dinámico por usuario
+            score_type = ScoreType(
+                id=doc["id"],
+                title=doc["title"],
+                composer=doc["composer"],
+                genre=doc["genre"],
+                format=doc["format"],
+                year=doc["year"],
+                uploaded_by=doc["uploaded_by"],
+                file_url=doc["file_url"],
+                description=doc["description"],
+                instruments=doc["instruments"],
+                likes=doc["likes"],
+                downloads=doc["downloads"],
+                favorito=requester_user_id in fav_set if requester_user_id else False,
+                liked=requester_user_id in liked_set if requester_user_id else False,
+                comentarios=comments_obj,
+            )
+            result.append(score_type)
+
+        return result
 
     @strawberry.field
     async def score_genres(self) -> list[str]:
+        cached = await redis_client.get("genres")
+        if cached:
+            return json.loads(cached)
+
         genres, _, _ = await _get_score_catalog_values()
+        await redis_client.setex("genres", 1800, json.dumps(genres))
         return genres
 
     @strawberry.field
     async def score_instruments(self) -> list[str]:
+        cached = await redis_client.get("instruments")
+        if cached:
+            return json.loads(cached)
+
         _, instruments, _ = await _get_score_catalog_values()
+        await redis_client.setex("instruments", 1800, json.dumps(instruments))
         return instruments
 
     @strawberry.field
     async def score_formats(self) -> list[str]:
+        cached = await redis_client.get("formats")
+        if cached:
+            return json.loads(cached)
+
         _, _, formats = await _get_score_catalog_values()
+
+        await redis_client.setex("formats", 1800, json.dumps(formats))
         return formats
 
 
 @strawberry.type
 class Mutation:
-
     @strawberry.mutation
     async def upload_score(
         self,
@@ -188,14 +280,13 @@ class Mutation:
         genre: str,
         format_type: str,
         year: int,
-        object_key: str,      
-        file_name: str,       
-        content_type: str,    
+        object_key: str,
+        file_name: str,
+        content_type: str,
         description: str = "",
         instruments: list[str] | None = None,
     ) -> ScoreType:
         user_id = _parse_user_id_from_request(info, required=True)
-        
         collection = get_scores_collection()
 
         doc = build_score_document(
@@ -213,28 +304,25 @@ class Mutation:
         )
 
         result = await collection.insert_one(doc)
+        await redis_client.delete("scores", "genres", "formats", "instruments")
         created_doc = await collection.find_one({"_id": result.inserted_id})
 
         return _serialize_score(created_doc, user_id)
-    
+
     @strawberry.mutation
     async def delete_score(self, info: Info, id: str) -> bool:
         user_id = _parse_user_id_from_request(info, required=True)
-
-        # 📦 3️⃣ Buscar documento en Mongo
         collection = get_scores_collection()
 
         doc = await collection.find_one({"_id": ObjectId(id)})
-
         if not doc:
             raise Exception("Score not found")
 
-        # 🔒 4️⃣ Validar que sea el dueño
         if doc["user_id"] != user_id:
             raise Exception("Not authorized to delete this score")
 
-        # 🗄 6️⃣ Eliminar documento en Mongo
         await collection.delete_one({"_id": ObjectId(id)})
+        await redis_client.delete("scores", "genres", "formats", "instruments")
 
         return True
 
@@ -249,33 +337,30 @@ class Mutation:
         format: str,
         year: int,
         description: str = "",
-        instruments: list[str] | None = None
+        instruments: list[str] | None = None,
     ) -> ScoreType:
-
         user_id = _parse_user_id_from_request(info, required=True)
-
         collection = get_scores_collection()
 
-        # Verificar que el score existe y pertenece al usuario
         doc = await collection.find_one({"_id": ObjectId(id), "user_id": user_id})
         if not doc:
-            raise HTTPException(status_code=404, detail="Score not found or not owned by user")
+            raise HTTPException(
+                status_code=404, detail="Score not found or not owned by user"
+            )
 
-        # Actualizar
         update_data = {
-            "title": title, 
-            "composer": composer, 
-            "genre": genre, 
-            "format": format, 
+            "title": title,
+            "composer": composer,
+            "genre": genre,
+            "format": format,
             "year": year,
             "description": description,
-            "instruments": instruments or []
+            "instruments": instruments or [],
         }
         await collection.update_one({"_id": ObjectId(id)}, {"$set": update_data})
+        await redis_client.delete("scores", "genres", "formats", "instruments")
 
-        # Obtener el documento actualizado
         updated_doc = await collection.find_one({"_id": ObjectId(id)})
-
         return _serialize_score(updated_doc, user_id)
 
     @strawberry.mutation
@@ -300,6 +385,8 @@ class Mutation:
             }
 
         await collection.update_one({"_id": ObjectId(id)}, update)
+        await redis_client.delete("scores")
+
         updated_doc = await collection.find_one({"_id": ObjectId(id)})
 
         if int(updated_doc.get("likes_count", 0)) < 0:
@@ -332,6 +419,7 @@ class Mutation:
                 {"$addToSet": {"favorited_by": user_id}},
             )
 
+        await redis_client.delete("scores")
         updated_doc = await collection.find_one({"_id": ObjectId(id)})
         return _serialize_score(updated_doc, user_id)
 
@@ -356,13 +444,14 @@ class Mutation:
             "usuario": usuario,
             "avatar": avatar,
             "texto": texto,
-            "fecha": datetime.utcnow().isoformat(),
+            "fecha": datetime.now(timezone.utc).isoformat(),
         }
 
         await collection.update_one(
             {"_id": ObjectId(id)},
             {"$push": {"comments": comment}},
         )
+        await redis_client.delete("scores")
 
         updated_doc = await collection.find_one({"_id": ObjectId(id)})
         return _serialize_score(updated_doc, user_id)
@@ -380,6 +469,6 @@ class Mutation:
             {"_id": ObjectId(id)},
             {"$inc": {"downloads": 1}},
         )
-
+        await redis_client.delete("scores")
         updated_doc = await collection.find_one({"_id": ObjectId(id)})
         return _serialize_score(updated_doc, requester)
