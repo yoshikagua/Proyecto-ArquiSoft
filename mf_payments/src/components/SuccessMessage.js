@@ -111,6 +111,14 @@ export function SuccessMessage({ data, paymentUser }) {
         >
           Hacer otra donación
         </a>
+
+        {/* Volver al inicio */}
+        <a
+          href={process.env.NEXT_PUBLIC_MAIN_APP_URL || "http://localhost/partituras"}
+          className="w-full bg-white text-orange-600 border-2 border-orange-500 hover:bg-orange-50 font-bold py-3 rounded-lg transition-all text-center shadow-sm block mt-3"
+        >
+          Volver a la página principal
+        </a>
       </div>
     </div>
   );
