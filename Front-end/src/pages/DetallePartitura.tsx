@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import {
     ArrowLeft,
     Download,
+    Eye,
     ThumbsUp,
     MessageSquare,
     User,
@@ -25,6 +26,7 @@ import {
     Send,
     BookOpen,
     Edit,
+    X,
 } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -56,6 +58,7 @@ const DetallePartitura = () => {
     // ── Datos de usuario autenticado ──
     const { user } = useAuth();
     const [showLoginAlert, setShowLoginAlert] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     const nombreFormateado = (() => {
         if (!user || (!user.nombre && !user.email)) return "Usuario Anónimo";
@@ -325,6 +328,21 @@ const DetallePartitura = () => {
                             Descargar PDF
                         </button>
 
+                        {/* Botón ver partitura */}
+                        <button
+                            onClick={() => {
+                                if (!partituraBase.fileUrl) {
+                                    toast.error("No hay archivo disponible para previsualizar");
+                                    return;
+                                }
+                                setShowPreview(true);
+                            }}
+                            className="flex items-center gap-2 rounded-lg border border-primary bg-primary/10 px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary/20 active:scale-[0.98]"
+                        >
+                            <Eye className="h-4 w-4" />
+                            Ver Partitura
+                        </button>
+
                         {/* Botón editar (solo para el creador) */}
                         {user && (partituraBase.uploadedBy === user.id?.toString() || partituraBase.uploadedBy === user.email) && (
                             <button
@@ -487,6 +505,45 @@ const DetallePartitura = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* ── Modal de previsualización PDF ── */}
+            {showPreview && partituraBase.fileUrl && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                    onClick={() => setShowPreview(false)}
+                >
+                    <div
+                        className="relative flex flex-col w-[95vw] h-[90vh] max-w-5xl rounded-2xl bg-card shadow-2xl overflow-hidden border border-secondary/20"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header del modal */}
+                        <div className="flex items-center justify-between border-b border-secondary/15 bg-background px-6 py-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <Eye className="h-5 w-5 text-primary flex-shrink-0" />
+                                <h3 className="font-serif text-lg font-semibold text-foreground truncate">
+                                    {partituraBase.titulo}
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => setShowPreview(false)}
+                                className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary/10 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors flex-shrink-0"
+                                aria-label="Cerrar previsualización"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Iframe del PDF */}
+                        <div className="flex-1 bg-neutral-200">
+                            <iframe
+                                src={partituraBase.fileUrl}
+                                title={`Previsualización de ${partituraBase.titulo}`}
+                                className="w-full h-full border-0"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </MainLayout>
     );
 };

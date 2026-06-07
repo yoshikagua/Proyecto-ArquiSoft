@@ -38,6 +38,8 @@ export function PaymentForm({ idUser, nameUser }) {
   const [paymentError, setPaymentError] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState(null);
 
+  const mainAppUrl = process.env.NEXT_PUBLIC_MAIN_APP_URL || "http://localhost/partituras";
+
   const validateCreditCard = () => {
     const newErrors = {};
 
@@ -216,16 +218,7 @@ export function PaymentForm({ idUser, nameUser }) {
       {/* Card */}
       <div className="bg-white/80 backdrop-blur-sm border border-orange-200/50 rounded-2xl p-6 shadow-xl">
         <form onSubmit={handleSubmit} className="space-y-5">
-          {paymentSuccess && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-              <p>{paymentSuccess.message}</p>
-              {paymentSuccess.transactionId && (
-                <p className="mt-1 text-xs text-emerald-800/80">
-                  ID de transacción: {paymentSuccess.transactionId}
-                </p>
-              )}
-            </div>
-          )}
+
 
           {paymentError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -371,6 +364,72 @@ export function PaymentForm({ idUser, nameUser }) {
           </p>
         </form>
       </div>
+
+      {/* ── Modal de donación exitosa ── */}
+      {paymentSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="relative w-[90vw] max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+            {/* Franja decorativa superior */}
+            <div className="h-2 w-full bg-gradient-to-r from-orange-400 to-amber-500" />
+
+            <div className="px-8 py-8 space-y-6">
+              {/* Ícono de éxito */}
+              <div className="flex justify-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-amber-300/30 rounded-full blur-lg animate-pulse"></div>
+                  <div className="relative bg-gradient-to-br from-orange-400 to-amber-500 p-4 rounded-full">
+                    <svg
+                      className="w-10 h-10 text-white"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mensaje de agradecimiento */}
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+                  ¡Gracias por tu donación!
+                </h2>
+                <p className="text-slate-600 text-sm">
+                  Tu generosidad nos ayuda a seguir construyendo KuisiScore.
+                </p>
+              </div>
+
+              {/* ID de la donación */}
+              {paymentSuccess.transactionId && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-orange-200 rounded-lg px-5 py-4 text-center">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                    ID de tu donación
+                  </p>
+                  <p className="text-lg font-mono font-bold text-orange-700 break-all">
+                    {paymentSuccess.transactionId}
+                  </p>
+                </div>
+              )}
+
+              {/* Botones de acción */}
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-3 rounded-lg transition-all shadow-md text-sm"
+                >
+                  Hacer otra donación
+                </button>
+                <a
+                  href={mainAppUrl}
+                  className="w-full bg-white text-orange-600 border-2 border-orange-300 hover:bg-orange-50 font-bold py-3 rounded-lg transition-all text-center shadow-sm block text-sm"
+                >
+                  Volver a la página principal
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
