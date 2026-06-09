@@ -1,0 +1,5 @@
+pub struct EmailRequest {
+    pub to: String,
+    pub subject: String,
+    pub body: String,
+}
