@@ -7,23 +7,28 @@ use PhpAmqpLib\Message\AMQPMessage;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+function env_value($key, $default = null)
+{
+    $value = getenv($key);
+
+    if ($value === false || $value === '') {
+        return $default;
+    }
+
+    return $value;
+}
+
 // --- CONFIG ---
 class Config
 {
     const RABBITMQ_HOST = 'rabbitmq';
     const RABBITMQ_PORT = 5672;
-    const RABBITMQ_USER = 'admin';
-    const RABBITMQ_PASS = 'password';
+    const RABBITMQ_USER = 'guest';
+    const RABBITMQ_PASS = 'guest';
     const RABBITMQ_QUEUE = 'notificaciones_email';
 
     const QUEUE_PREFETCH_COUNT = 1;
     const MAX_RETRIES = 3;
-
-    const SENDGRID_HOST = 'smtp.sendgrid.net';
-    const SENDGRID_PORT = 587;
-
-    const FROM_EMAIL = 'jmanuelt09@gmail.com';
-    const FROM_NAME = 'Sistema RabbitMQ';
 }
 
 // --- DB ---
@@ -79,12 +84,11 @@ class EmailProcessor
         }
 
         try {
-            $this->sendEmail($email, $mensaje, $asunto);
+            $this->sendEmail($email, $asunto, $mensaje);
 
             // Guardar éxito
             $this->saveLog($email, $asunto, $mensaje, 'success');
 
-            $this->logger->info("Enviado a $email");
             $msg->ack();
 
         } catch (\Exception $e) {
@@ -97,27 +101,34 @@ class EmailProcessor
         }
     }
 
-    private function sendEmail($to, $message, $subject)
+    private function sendEmail($to, $subject, $message)
     {
         $mail = new PHPMailer(true);
         $mail->CharSet = 'UTF-8';
 
-        $mail->isSMTP();
-        $mail->Host = Config::SENDGRID_HOST;
-        $mail->SMTPAuth = true;
-        $mail->Username = 'apikey';
-        $mail->Password = getenv('SENDGRID_API_KEY');
-        $mail->Port = Config::SENDGRID_PORT;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        try {
+            $mail->isSMTP();
+            $mail->Host = env_value('SMTP_HOST', 'smtp.gmail.com');
+            $mail->SMTPAuth = true;
+            $mail->Username = env_value('SMTP_USER', 'kuisiscore.notifications@gmail.com');
+            $mail->Password = env_value('SMTP_PASSWORD', 'cqgg yzdq aidw dxwq');
+            $mail->SMTPSecure = 'tls';
+            $mail->Port = (int) env_value('SMTP_PORT', 587);
 
-        $mail->setFrom(Config::FROM_EMAIL, Config::FROM_NAME);
-        $mail->addAddress($to);
+            $mail->setFrom(env_value('SMTP_USER', 'kuisiscore.notifications@gmail.com'), 'KuisiScore Notifications');
+            $mail->addAddress($to);
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body = $message;
 
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body = "<p>" . htmlspecialchars($message) . "</p>";
+            $mail->send();
+            echo "[INFO] Correo enviado exitosamente a {$to}\n";
 
-        $mail->send();
+            return true;
+        } catch (Exception $e) {
+            echo "[ERROR] Fallo en el envío. PHPMailer Error: {$mail->ErrorInfo}\n";
+            throw $e;
+        }
     }
 
     private function saveLog($email, $asunto, $mensaje, $estado, $error = null)
@@ -144,10 +155,10 @@ $logger = new Logger();
 $db = getDB();
 
 $connection = new AMQPStreamConnection(
-    getenv('RABBITMQ_HOST') ?: '10.0.0.68',
-    5672,
-    'admin',
-    'password'
+    env_value('RABBITMQ_HOST', Config::RABBITMQ_HOST),
+    (int) env_value('RABBITMQ_PORT', Config::RABBITMQ_PORT),
+    env_value('RABBITMQ_USER', Config::RABBITMQ_USER),
+    env_value('RABBITMQ_PASS', Config::RABBITMQ_PASS)
 );
 
 $channel = $connection->channel();

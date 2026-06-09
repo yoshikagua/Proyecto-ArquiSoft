@@ -59,7 +59,12 @@ services:
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: emails_db
@@ -84,6 +89,8 @@ services:
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
     restart: unless-stopped
     networks:
       - notification-network

@@ -1,6 +1,6 @@
 # 📧 Módulo de Notificaciones por Email – KuisiScore
 
-Sistema asincrónico de notificaciones por email usando **RabbitMQ** como broker de mensajes y **SendGrid** como proveedor SMTP. El módulo se integra en el stack raíz del proyecto y también puede ejecutarse de forma aislada desde este directorio.
+Sistema asincrónico de notificaciones por email usando **RabbitMQ** como broker de mensajes y **PHPMailer** sobre **SMTP seguro con Gmail** como proveedor de salida. El módulo se integra en el stack raíz del proyecto y también puede ejecutarse de forma aislada desde este directorio.
 
 ## 👥 Equipo
 
@@ -46,13 +46,13 @@ Sistema asincrónico de notificaciones por email usando **RabbitMQ** como broker
 				 ┌───────────▼──────────┐
 				 │  Email Worker (PHP)  │
 				 │ - Consume mensajes   │
-				 │ - Envía vía SendGrid │
+					 │ - Envía vía SMTP     │
 				 │ - Registra logs      │
 				 └───────────┬──────────┘
 										 │
 				 ┌───────────▼──────────┐
 				 │     PHPMailer        │
-				 │    + SendGrid SMTP   │
+					 │   + Gmail SMTP TLS   │
 				 └───────────┬──────────┘
 										 │
 				 ┌───────────▼──────────┐
@@ -68,7 +68,7 @@ Sistema asincrónico de notificaciones por email usando **RabbitMQ** como broker
 
 ### Requisitos
 - Docker & Docker Compose
-- SendGrid API Key (obtener en https://sendgrid.com)
+- Cuenta de Gmail con SMTP habilitado
 
 ### Pasos
 
@@ -83,7 +83,7 @@ Sistema asincrónico de notificaciones por email usando **RabbitMQ** como broker
 	 ```bash
 	 cp .env.example .env
 	 # Editar .env y completar:
-	 # - SENDGRID_API_KEY: tu clave de SendGrid
+	 # - SMTP_HOST, SMTP_PORT, SMTP_USER y SMTP_PASSWORD
 	 # - Otros valores según necesidad
 	 ```
 
@@ -210,7 +210,7 @@ CREATE INDEX idx_fecha ON emails_enviados(fecha_envio);
 Ver `.env.example` para configuración completa.
 
 **Críticas:**
-- `SENDGRID_API_KEY`: Clave de API de SendGrid (requerida para producción)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`: credenciales SMTP para Gmail
 - `RABBITMQ_HOST`: Host de RabbitMQ (default: `rabbitmq`)
 - `DB_HOST`: Host de PostgreSQL (default: `notification-postgres`)
 
@@ -264,7 +264,7 @@ Cliente → POST /
 Escucha queue: notificaciones_email
 				 ↓ Consume mensaje
 				 ↓ Extrae datos
-				 ↓ Envía por SendGrid (PHPMailer)
+					 ↓ Envía por SMTP Gmail (PHPMailer)
 				 ↓ Registra en PostgreSQL
 				 ↓ ACK del mensaje
 ```
@@ -291,10 +291,10 @@ Cada email registra:
 - **Contraseña:** `guest`
 - **Queue:** `notificaciones_email` (durable)
 
-### SendGrid
-- **Host:** `smtp.sendgrid.net`
+### Gmail SMTP
+- **Host:** `smtp.gmail.com`
 - **Puerto:** `587`
-- **Auth:** `apikey` + `SENDGRID_API_KEY`
+- **Auth:** `SMTP_USER` + `SMTP_PASSWORD`
 - **Encriptación:** `STARTTLS`
 
 ### PostgreSQL
@@ -383,8 +383,8 @@ Ver `INTEGRATION.md` (en Prototype-2) para detalles.
 - Revisar logs: `docker compose logs rabbitmq`
 
 ### "SMTP Error" en emails
-- Verificar `SENDGRID_API_KEY` en `.env`
-- Comprobar que SendGrid esté activo
+- Verificar `SMTP_USER` y `SMTP_PASSWORD` en `.env`
+- Comprobar que Gmail permita SMTP con la cuenta configurada
 - Revisar logs: `docker compose logs notification-worker`
 
 ### "Database connection error"
@@ -403,7 +403,7 @@ Ver `INTEGRATION.md` (en Prototype-2) para detalles.
 
 - [RabbitMQ](https://www.rabbitmq.com/)
 - [PHPMailer](https://github.com/PHPMailer/PHPMailer)
-- [SendGrid](https://sendgrid.com/)
+- [Gmail SMTP](https://support.google.com/mail/answer/7126229)
 - [php-amqplib](https://github.com/php-amqplib/php-amqplib)
 
 ---

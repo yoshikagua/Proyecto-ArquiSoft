@@ -4,6 +4,17 @@ require_once __DIR__ . '/vendor/autoload.php';
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 
+function env_value($key, $default = null)
+{
+    $value = getenv($key);
+
+    if ($value === false || $value === '') {
+        return $default;
+    }
+
+    return $value;
+}
+
 // Permitir JSON
 header('Content-Type: application/json');
 
@@ -34,8 +45,12 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
 try {
     // Conexión a RabbitMQ
-    $host = getenv('RABBITMQ_HOST') ?: 'rabbitmq';
-    $connection = new AMQPStreamConnection($host, 5672, 'guest', 'guest');
+    $connection = new AMQPStreamConnection(
+        env_value('RABBITMQ_HOST', 'rabbitmq'),
+        (int) env_value('RABBITMQ_PORT', 5672),
+        env_value('RABBITMQ_USER', 'guest'),
+        env_value('RABBITMQ_PASS', 'guest')
+    );
     $channel = $connection->channel();
 
     // queue_declare($queue, $passive, $durable, $exclusive, $auto_delete)

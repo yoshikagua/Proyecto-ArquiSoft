@@ -9,7 +9,7 @@ Guía de desarrollo para trabajar en el módulo de notificaciones.
 ### Requisitos
 - Docker & Docker Compose
 - Git
-- SendGrid Account (para producción)
+- Cuenta de Gmail con SMTP habilitado (para producción)
 
 ### Pasos
 
@@ -27,7 +27,10 @@ Guía de desarrollo para trabajar en el módulo de notificaciones.
 
 3. **Editar .env con tus credenciales**
    ```bash
-   SENDGRID_API_KEY=sk_test_xxxxx
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USER=kuisiscore.notifications@gmail.com
+   SMTP_PASSWORD=cqgg yzdq aidw dxwq
    RABBITMQ_HOST=rabbitmq
    DB_HOST=postgres
    # ... otros valores
@@ -189,11 +192,11 @@ docker compose logs rabbitmq
 docker compose restart rabbitmq
 ```
 
-### Error en SendGrid
+### Error en SMTP
 
-1. Verificar API Key en `.env`
+1. Verificar credenciales SMTP en `.env`
 2. Ver logs del worker
-3. Probar credenciales en SendGrid dashboard
+3. Probar acceso SMTP de Gmail
 
 ### Error de BD
 
@@ -271,7 +274,10 @@ const MAX_RETRIES = 5;  // Cambiar de 3 a 5
 
 ```bash
 # .env en producción
-SENDGRID_API_KEY=sk_live_xxxxx
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=kuisiscore.notifications@gmail.com
+SMTP_PASSWORD=tu_app_password_de_gmail
 RABBITMQ_USER=production_user
 RABBITMQ_PASS=strong_password
 DB_USER=prod_db_user
@@ -283,7 +289,7 @@ DB_PASSWORD=strong_password
 - [ ] API Gateway valida JWT
 - [ ] RabbitMQ con credenciales fuertes
 - [ ] PostgreSQL con credenciales fuertes
-- [ ] SendGrid API Key en secretos (no en git)
+- [ ] Credenciales SMTP en secretos (no en git)
 - [ ] Logs sin mostrar datos sensibles
 - [ ] HTTPS para endpoints
 
@@ -293,7 +299,7 @@ DB_PASSWORD=strong_password
 
 - [RabbitMQ Docs](https://www.rabbitmq.com/documentation.html)
 - [PHPMailer Docs](https://github.com/PHPMailer/PHPMailer/wiki)
-- [SendGrid Integration](https://sendgrid.com/docs/)
+- [Gmail SMTP](https://support.google.com/mail/answer/7126229)
 - [Docker Compose Reference](https://docs.docker.com/compose/compose-file/)
 
 ---
