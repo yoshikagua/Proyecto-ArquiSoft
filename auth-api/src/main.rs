@@ -26,6 +26,7 @@ use crate::dto::{
         handlers::auth_handler::recover_password,
         handlers::auth_handler::verify_recovery_code,
         handlers::auth_handler::login,
+        handlers::auth_handler::google_login,
         handlers::auth_handler::logout,
         handlers::auth_handler::get_current_user,
         handlers::auth_handler::update_user,
@@ -38,6 +39,7 @@ use crate::dto::{
         RecoveryRequest, 
         VerifyRecoveryCodeRequest,
         LoginRequest,
+        crate::dto::google_auth_request::GoogleAuthRequest,
         crate::dto::update_user_request::UpdateUserRequest,
         crate::dto::update_user_request::ResetPasswordRequest,
         crate::handlers::auth_handler::UserListResponse,
@@ -62,6 +64,7 @@ use services::{
     auth_service::AuthService,
     recovery_service::RecoveryService,
     email_service::EmailService,
+    google_auth_service::GoogleAuthService,
 };
 use std::sync::Arc;
 
@@ -101,9 +104,13 @@ async fn main() -> anyhow::Result<()> {
     };
     let email_service = EmailService::new(email_config).expect("Error configurando EmailService");
 
+    let google_client_id = env::var("GOOGLE_CLIENT_ID").unwrap_or_default();
+    let google_auth_service = GoogleAuthService::new(google_client_id);
+
     let auth_service = AuthService {
         pool: db_pool.clone(),
         email_service: email_service.clone(),
+        google_auth_service,
     };
 
     let recovery_service = RecoveryService {
@@ -123,6 +130,7 @@ async fn main() -> anyhow::Result<()> {
     let auth_routes = Router::new()
         .route("/register", post(handlers::auth_handler::register))
         .route("/login", post(handlers::auth_handler::login))
+        .route("/google", post(handlers::auth_handler::google_login))
         .route("/logout", post(handlers::auth_handler::logout))
         .route("/recover", post(handlers::auth_handler::recover_password))
         .route("/verify-recovery-code", post(handlers::auth_handler::verify_recovery_code))

@@ -78,12 +78,15 @@ services:
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-super-secret-internal-cluster-key-change-me}
       NOTIFICATION_URL: http://notification-producer:8000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - services-network
       - data-network
+      # Necesaria para verificar tokens de Google contra su JWKS público (internet egress)
+      - messaging-network
 
   payments_app:
     build:
@@ -399,6 +402,7 @@ services:
     container_name: proyectosoft-frontend
     environment:
       VITE_API_URL: https://localhost/api
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     expose:
       - "8080"
     depends_on:

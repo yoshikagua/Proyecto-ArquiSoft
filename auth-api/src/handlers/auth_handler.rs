@@ -12,6 +12,7 @@ use crate::dto::verify_recovery_code_request::VerifyRecoveryCodeRequest;
 use crate::dto::login_request::LoginRequest;
 use crate::dto::update_user_request::{UpdateUserRequest, ResetPasswordRequest};
 use crate::dto::change_password_request::ChangePasswordRequest;
+use crate::dto::google_auth_request::GoogleAuthRequest;
 use crate::errors::app_error::AppError;
 use crate::services::auth_service::Claims;
 use sqlx::Row;
@@ -158,6 +159,50 @@ pub async fn login(
         },
         Err(e) => {
             error!("Error en login: {:?}", e);
+            e.into_response()
+        }
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/google",
+    request_body = GoogleAuthRequest,
+    responses(
+        (status = 200, description = "Login con Google exitoso", body = String),
+        (status = 401, description = "Token de Google inválido"),
+    ),
+    tag = "auth"
+)]
+pub async fn google_login(
+    State(state): State<AppState>,
+    Json(payload): Json<GoogleAuthRequest>,
+) -> impl IntoResponse {
+    info!("POST /auth/google");
+
+    let claims = match state.auth_service.google_auth_service.verify(&payload.credential).await {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Error verificando token de Google: {:?}", e);
+            return e.into_response();
+        }
+    };
+
+    match state.auth_service.google_login(claims).await {
+        Ok((user, token)) => {
+            info!("Login con Google exitoso para usuario: {}", user.email);
+            (StatusCode::OK, Json(json!({
+                "token": token,
+                "user": {
+                    "id": user.user_id,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email": user.email
+                }
+            }))).into_response()
+        },
+        Err(e) => {
+            error!("Error en google_login: {:?}", e);
             e.into_response()
         }
     }
