@@ -224,7 +224,7 @@ pub async fn google_login(
 )]
 pub async fn logout(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
+    claims: Claims,
 ) -> impl IntoResponse {
     match state.auth_service.logout(claims.sub).await {
         Ok(_) => (
@@ -247,7 +247,7 @@ pub async fn logout(
 )]
 pub async fn get_current_user(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
+    claims: Claims,
 ) -> impl IntoResponse {
     let user = sqlx::query(
         r#"
@@ -294,7 +294,7 @@ pub async fn get_current_user(
 pub async fn update_user(
     State(state): State<AppState>,
     Path(target_id): Path<i32>,
-    Extension(claims): Extension<Claims>,
+    claims: Claims,
     Json(payload): Json<UpdateUserRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     
@@ -396,7 +396,7 @@ pub async fn reset_password(
 )]
 pub async fn get_all_users(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
+    claims: Claims,
     axum::extract::Query(params): axum::extract::Query<PaginationParams>, 
 ) -> Result<impl IntoResponse, AppError> {
     
@@ -451,7 +451,7 @@ pub async fn get_all_users(
     tag = "auth"
 )]
 pub async fn change_password(
-    State(state): State<AppState>,
+    claims: Claims,
     Extension(claims): Extension<Claims>,
     Json(payload): Json<ChangePasswordRequest>,
 ) -> Result<impl IntoResponse, AppError> {
