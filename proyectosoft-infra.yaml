@@ -16,6 +16,11 @@ data:
   MINIO_PUBLIC_URL: "http://157.137.220.215:9000"
   FRONTEND_URL: "https://157.137.220.215:8080"
   VITE_API_URL: "https://157.137.220.215/api"
+  # === NUEVAS VARIABLES INTRODUCIDAS ===
+  GOOGLE_CLIENT_ID: "258999743388-gj8hf2etblutu1hnmmj5henkdu6rkuuu.apps.googleusercontent.com"
+  VITE_GOOGLE_CLIENT_ID: "258999743388-gj8hf2etblutu1hnmmj5henkdu6rkuuu.apps.googleusercontent.com"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
 ---
 apiVersion: v1
 kind: Service
@@ -58,6 +63,11 @@ spec:
           value: "postgres://authuser:authpass@10.0.0.68:5432/auth_db"
         - name: NOTIFICATION_URL
           value: "http://notification-producer:8000"
+        - name: GOOGLE_CLIENT_ID
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: GOOGLE_CLIENT_ID
         - name: JWT_SECRET
           valueFrom:
             configMapKeyRef:
@@ -208,6 +218,16 @@ spec:
           value: "mongodb://10.0.0.68:27017/tu_db"
         - name: DB_NAME
           value: "music_db"
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: REDIS_PORT
         - name: JWT_ALGORITHM
           valueFrom:
             configMapKeyRef:
@@ -441,7 +461,6 @@ spec:
               name: app-config
               key: INTERNAL_SERVICE_SECRET
 ---
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -465,7 +484,12 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
-
+        env:
+          - name: VITE_GOOGLE_CLIENT_ID
+            valueFrom:
+              configMapKeyRef:
+                name: app-config
+                key: VITE_GOOGLE_CLIENT_ID
 ---
 apiVersion: v1
 kind: Service
@@ -478,7 +502,6 @@ spec:
     targetPort: 8080
   selector:
     app: frontend
-
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -550,3 +573,37 @@ spec:
   stripPrefix:
     prefixes:
     - /scores
+---
+# === DESPLIEGUE DE REDIS EN EL CLUSTER ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caching-redis
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: caching-redis
+  template:
+    metadata:
+      labels:
+        app: caching-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: proyectosoft
+spec:
+  ports:
+  - port: 6379
+    targetPort: 6379
+  selector:
+    app: caching-redis
