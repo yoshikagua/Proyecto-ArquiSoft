@@ -6,11 +6,7 @@ from ..config.settings import settings
 from ..utils.security import generate_internal_service_headers
 
 router = APIRouter(
-<<<<<<< HEAD
     prefix="/storage",
-=======
-    prefix="/api/storage",
->>>>>>> origin/interoperabilidad
     tags=["storage"],
     responses={404: {"description": "Not found"}},
 )
@@ -323,10 +319,9 @@ async def handle_graphql_root(request: Request):
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 async def proxy_music_storage(request: Request, path: str = "") -> Response:
-<<<<<<< HEAD
     """Proxy genérico para rutas adicionales apuntando al servicio de archivos físico."""
     
-    # 🔄 CONDICIÓN INTELIGENTE:
+    # 🔄 CONDICIÓN INTELIGENTE DE LA NUBE:
     if path:
         # Si trae un path (ej: scores/archivo.pdf), va directo al servidor de archivos físicos
         upstream_url = f"http://files-api:8000/{path}"
@@ -334,11 +329,6 @@ async def proxy_music_storage(request: Request, path: str = "") -> Response:
         # Si NO trae path (es el POST de GraphQL para la biblioteca), va a metadatos
         upstream_url = "http://metadata-api:8000/storage"
 
-=======
-    """Proxy genérico para rutas adicionales."""
-    upstream_url = f"http://metadata-api:8000/storage/{path}" if path else "http://metadata-api:8000/storage"
-    
->>>>>>> origin/interoperabilidad
     client_headers = {k: v for k, v in request.headers.items() if k.lower() != "host"}
     internal_headers = generate_internal_service_headers()
 
@@ -351,15 +341,6 @@ async def proxy_music_storage(request: Request, path: str = "") -> Response:
                 content=await request.body(),
                 headers={**client_headers, **internal_headers},
             )
-<<<<<<< HEAD
-
-            return Response(
-                content=upstream_response.content,
-                status_code=upstream_response.status_code,
-                headers=_filter_response_headers(upstream_response.headers),
-                media_type=upstream_response.headers.get("content-type"),
-            )
-=======
         
         return Response(
             content=upstream_response.content,
@@ -367,6 +348,5 @@ async def proxy_music_storage(request: Request, path: str = "") -> Response:
             headers=_filter_response_headers(upstream_response.headers),
             media_type=upstream_response.headers.get("content-type"),
         )
->>>>>>> origin/interoperabilidad
     except httpx.RequestError as exc:
         raise HTTPException(status_code=503, detail=f"Error en el proxy: {str(exc)}")

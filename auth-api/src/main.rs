@@ -26,26 +26,20 @@ use crate::dto::{
         handlers::auth_handler::recover_password,
         handlers::auth_handler::verify_recovery_code,
         handlers::auth_handler::login,
-<<<<<<< HEAD
-=======
         handlers::auth_handler::google_login,
->>>>>>> origin/interoperabilidad
         handlers::auth_handler::logout,
         handlers::auth_handler::get_current_user,
         handlers::auth_handler::update_user,
         handlers::auth_handler::reset_password,
         handlers::auth_handler::get_all_users,
-        handlers::auth_handler::change_password
+        handlers::change_password
     ),
     components(schemas(
         RegisterRequest, 
         RecoveryRequest, 
         VerifyRecoveryCodeRequest,
         LoginRequest,
-<<<<<<< HEAD
-=======
         crate::dto::google_auth_request::GoogleAuthRequest,
->>>>>>> origin/interoperabilidad
         crate::dto::update_user_request::UpdateUserRequest,
         crate::dto::update_user_request::ResetPasswordRequest,
         crate::handlers::auth_handler::UserListResponse,
@@ -70,10 +64,7 @@ use services::{
     auth_service::AuthService,
     recovery_service::RecoveryService,
     email_service::EmailService,
-<<<<<<< HEAD
-=======
     google_auth_service::GoogleAuthService,
->>>>>>> origin/interoperabilidad
 };
 use std::sync::Arc;
 
@@ -113,11 +104,6 @@ async fn main() -> anyhow::Result<()> {
     };
     let email_service = EmailService::new(email_config).expect("Error configurando EmailService");
 
-<<<<<<< HEAD
-    let auth_service = AuthService {
-        pool: db_pool.clone(),
-        email_service: email_service.clone(),
-=======
     let google_client_id = env::var("GOOGLE_CLIENT_ID").unwrap_or_default();
     let google_auth_service = GoogleAuthService::new(google_client_id);
 
@@ -125,7 +111,6 @@ async fn main() -> anyhow::Result<()> {
         pool: db_pool.clone(),
         email_service: email_service.clone(),
         google_auth_service,
->>>>>>> origin/interoperabilidad
     };
 
     let recovery_service = RecoveryService {
@@ -145,12 +130,9 @@ async fn main() -> anyhow::Result<()> {
     let auth_routes = Router::new()
         .route("/register", post(handlers::auth_handler::register))
         .route("/login", post(handlers::auth_handler::login))
-<<<<<<< HEAD
-=======
         .route("/google", post(handlers::auth_handler::google_login))
->>>>>>> origin/interoperabilidad
         .route("/logout", post(handlers::auth_handler::logout))
-        .route("/recover", post(handlers::auth_handler::recover_password))
+        .route("/recover", post(handlers::auth_password))
         .route("/verify-recovery-code", post(handlers::auth_handler::verify_recovery_code))
         .route("/me", get(handlers::auth_handler::get_current_user))
         .route("/users/:id", put(handlers::auth_handler::update_user))

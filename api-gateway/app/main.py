@@ -3,10 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config.settings import settings
 from .routers import auth, storage, notifications, payments
-<<<<<<< HEAD
-=======
 import os
->>>>>>> origin/interoperabilidad
 
 # Crear aplicación FastAPI
 app = FastAPI(
@@ -26,7 +23,7 @@ app.add_middleware(
         "http://localhost:8080",       # Web frontend (acceso directo legacy)
         "http://127.0.0.1:8080",
         "http://localhost:1420",       # Tauri desktop (Vite dev)
-        "http://127.0.0.1:1420",      # Tauri desktop (Vite dev)
+        "http://127.0.0.1:1420",       # Tauri desktop (Vite dev)
         "tauri://localhost",           # Tauri desktop (producción - protocolo custom)
         "https://tauri.localhost",     # Tauri desktop (producción - HTTPS)
         "http://tauri.localhost",      # Tauri desktop (producción - HTTP, Windows)
@@ -36,21 +33,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-<<<<<<< HEAD
-# Incluir routers homologados con el prefijo /api
+# Incluir routers homologados con el prefijo /api requerido por la nube
 app.include_router(auth.router, prefix="/api")
 app.include_router(storage.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
-=======
-# Incluir routers
-app.include_router(auth.router)
-app.include_router(storage.router)
-app.include_router(notifications.router)
-app.include_router(payments.router, prefix="/api")
-app.include_router(payments.router)
 
->>>>>>> origin/interoperabilidad
 
 @app.get("/")
 async def root():
@@ -64,10 +52,6 @@ async def root():
 
 @app.get("/health")
 async def health():
-<<<<<<< HEAD
-    """Health check del gateway"""
-    return {"status": "healthy"}
-=======
     return {
         "status": "healthy",
         "instance": os.getenv("INSTANCE_NAME"),
@@ -77,7 +61,6 @@ async def health():
             "notifications": "ok"
         }
     }
->>>>>>> origin/interoperabilidad
 
 
 if __name__ == "__main__":

@@ -19,13 +19,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
-<<<<<<< HEAD
-=======
 class GoogleAuthRequest(BaseModel):
     credential: str
 
 
->>>>>>> origin/interoperabilidad
 class SignUpRequest(BaseModel):
     email: str
     password: str
@@ -107,8 +104,6 @@ async def login(request: LoginRequest):
         )
 
 
-<<<<<<< HEAD
-=======
 @router.post("/google")
 async def google_login(request: GoogleAuthRequest):
     """
@@ -144,7 +139,6 @@ async def google_login(request: GoogleAuthRequest):
         )
 
 
->>>>>>> origin/interoperabilidad
 @router.post("/signup")
 async def signup(request: SignUpRequest):
     """

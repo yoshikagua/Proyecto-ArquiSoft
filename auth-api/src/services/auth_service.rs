@@ -4,21 +4,15 @@ use argon2::{
     PasswordHasher, PasswordVerifier, PasswordHash
 };
 use password_hash::{SaltString, rand_core::OsRng};
-<<<<<<< HEAD
-=======
 use rand::{distributions::Alphanumeric, Rng};
->>>>>>> origin/interoperabilidad
 use chrono::Utc;
 
 use jsonwebtoken::{encode, Header, EncodingKey};
 
 use crate::{
-    dto::{register_request::RegisterRequest, email_request::EmailRequest,login_request::LoginRequest},
+    dto::{register_request::RegisterRequest, email_request::EmailRequest, login_request::LoginRequest},
     services::email_service::EmailService,
-<<<<<<< HEAD
-=======
     services::google_auth_service::{GoogleAuthService, GoogleClaims},
->>>>>>> origin/interoperabilidad
     errors::app_error::AppError,
     models::user::User,
 };
@@ -30,10 +24,7 @@ use std::env;
 pub struct AuthService {
     pub pool: Arc<PgPool>,
     pub email_service: EmailService,
-<<<<<<< HEAD
-=======
     pub google_auth_service: GoogleAuthService,
->>>>>>> origin/interoperabilidad
 }
 
 use serde::{Serialize, Deserialize};
@@ -115,7 +106,8 @@ impl AuthService {
 
         Ok(())
     }
-pub async fn login(&self, payload: LoginRequest) -> Result<(User, String), AppError> {
+
+    pub async fn login(&self, payload: LoginRequest) -> Result<(User, String), AppError> {
         let email = payload.email.trim().to_lowercase();
 
         // 1. Buscar el usuario
@@ -129,26 +121,14 @@ pub async fn login(&self, payload: LoginRequest) -> Result<(User, String), AppEr
         .ok_or(AppError::InvalidCredentials)?;
 
         // 2. Verificar la contraseña
-        // SE CORRIGIÓ: Usar el tipo PasswordHash correctamente
         let hash = PasswordHash::new(&user.password)
             .map_err(|_| AppError::DatabaseError)?;
 
-        // Requiere que 'PasswordVerifier' esté en el scope (añadido en los use)
         Argon2::default()
             .verify_password(payload.password.as_bytes(), &hash)
             .map_err(|_| AppError::InvalidCredentials)?;
 
-<<<<<<< HEAD
-
-    // 3.AQUÍ MANEJAMOS LA SESIÓN ÚNICA
-    
-    let mut tx = self.pool.begin().await.map_err(|_| AppError::DatabaseError)?;
-
-    // A. Borrar sesiones anteriores del mismo usuario (Garantiza sesión única)
-    sqlx::query("DELETE FROM sessions WHERE user_id = $1")
-        .bind(user.user_id)
-=======
-        // 3. Emitir sesión (JWT + sesión única en DB)
+        // 3. Emitir sesión (JWT + sesión única en DB) using unified function
         let token = self.issue_session(&user).await?;
 
         Ok((user, token))
@@ -243,54 +223,15 @@ pub async fn login(&self, payload: LoginRequest) -> Result<(User, String), AppEr
         .bind(user.user_id)
         .bind(&token)
         .bind(Utc::now() + chrono::Duration::hours(24))
->>>>>>> origin/interoperabilidad
         .execute(&mut *tx)
         .await
         .map_err(|_| AppError::DatabaseError)?;
 
-<<<<<<< HEAD
-    // B. Generar datos del JWT
-    let secret = env::var("JWT_SECRET").map_err(|_| AppError::DatabaseError)?;
-    let now = Utc::now().timestamp();
-    let expiration = now + (24 * 3600); 
-
-    let claims = Claims {
-        sub: user.user_id,
-        exp: expiration,
-        iat: now,
-        role: user.role_id,
-    };
-
-    let token = encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(secret.as_bytes()),
-    ).map_err(|_| AppError::DatabaseError)?;
-
-    // C. Guardar la nueva sesión en la DB
-    // Nota: Guardamos el hash del token o el token mismo según tu modelo
-    sqlx::query(
-        "INSERT INTO sessions (user_id, refresh_token_hash, expires_at, created_at) 
-         VALUES ($1, $2, $3, NOW())"
-    )
-    .bind(user.user_id)
-    .bind(&token) // O un hash de este si prefieres
-    .bind(Utc::now() + chrono::Duration::hours(24))
-    .execute(&mut *tx)
-    .await
-    .map_err(|_| AppError::DatabaseError)?;
-
-    tx.commit().await.map_err(|_| AppError::DatabaseError)?;
-
-    Ok((user, token))    }
-    
-=======
         tx.commit().await.map_err(|_| AppError::DatabaseError)?;
 
         Ok(token)
     }
 
->>>>>>> origin/interoperabilidad
     pub async fn logout(&self, user_id: i32) -> Result<(), AppError> {
         sqlx::query("DELETE FROM sessions WHERE user_id = $1")
             .bind(user_id)

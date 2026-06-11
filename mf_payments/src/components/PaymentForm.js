@@ -38,11 +38,8 @@ export function PaymentForm({ idUser, nameUser }) {
   const [paymentError, setPaymentError] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState(null);
 
-<<<<<<< HEAD
-=======
   const mainAppUrl = process.env.NEXT_PUBLIC_MAIN_APP_URL || "http://localhost/partituras";
 
->>>>>>> origin/interoperabilidad
   const validateCreditCard = () => {
     const newErrors = {};
 
@@ -221,20 +218,6 @@ export function PaymentForm({ idUser, nameUser }) {
       {/* Card */}
       <div className="bg-white/80 backdrop-blur-sm border border-orange-200/50 rounded-2xl p-6 shadow-xl">
         <form onSubmit={handleSubmit} className="space-y-5">
-<<<<<<< HEAD
-          {paymentSuccess && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-              <p>{paymentSuccess.message}</p>
-              {paymentSuccess.transactionId && (
-                <p className="mt-1 text-xs text-emerald-800/80">
-                  ID de transacción: {paymentSuccess.transactionId}
-                </p>
-              )}
-            </div>
-          )}
-=======
-
->>>>>>> origin/interoperabilidad
 
           {paymentError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -380,8 +363,6 @@ export function PaymentForm({ idUser, nameUser }) {
           </p>
         </form>
       </div>
-<<<<<<< HEAD
-=======
 
       {/* ── Modal de donación exitosa ── */}
       {paymentSuccess && (
@@ -448,7 +429,6 @@ export function PaymentForm({ idUser, nameUser }) {
           </div>
         </div>
       )}
->>>>>>> origin/interoperabilidad
     </div>
   );
 }
