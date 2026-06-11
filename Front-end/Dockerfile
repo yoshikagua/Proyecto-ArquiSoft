@@ -1,19 +1,16 @@
-<<<<<<< HEAD
 # === ETAPA 1: COMPILACIÓN ===
 FROM node:20-alpine AS builder
-=======
-FROM node:20-alpine
->>>>>>> origin/interoperabilidad
 
 WORKDIR /app
 
 COPY package*.json ./
-<<<<<<< HEAD
 # Instalamos todas las dependencias para poder compilar
 RUN npm ci
 
 COPY . .
+
 # Compila la aplicación de React/Vite (genera la carpeta /app/dist)
+# Nota: Al compilar en producción, Vite inyectará las variables de entorno que definimos en Kubernetes
 RUN npm run build
 
 # === ETAPA 2: SERVIDOR DE PRODUCCIÓN ===
@@ -35,12 +32,3 @@ RUN echo 'server { \
 EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]
-=======
-RUN npm ci
-
-COPY . .
-
-EXPOSE 8080
-
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "8080"]
->>>>>>> origin/interoperabilidad
