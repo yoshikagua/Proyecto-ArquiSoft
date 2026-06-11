@@ -4,7 +4,6 @@ pub mod services;
 pub mod dto;
 pub mod errors;
 pub mod models;
-pub mod auth;
 
 use axum::{
     routing::{post, put, get},
