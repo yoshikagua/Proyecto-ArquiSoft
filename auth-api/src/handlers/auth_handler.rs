@@ -451,8 +451,8 @@ pub async fn get_all_users(
     tag = "auth"
 )]
 pub async fn change_password(
+    State(state): State<AppState>,
     claims: Claims,
-    Extension(claims): Extension<Claims>,
     Json(payload): Json<ChangePasswordRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     
