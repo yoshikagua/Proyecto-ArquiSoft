@@ -4,6 +4,7 @@ pub mod services;
 pub mod dto;
 pub mod errors;
 pub mod models;
+pub mod auth;
 
 use axum::{
     routing::{post, put, get},
@@ -32,7 +33,7 @@ use crate::dto::{
         handlers::auth_handler::update_user,
         handlers::auth_handler::reset_password,
         handlers::auth_handler::get_all_users,
-        handlers::change_password
+        handlers::auth_handler::change_password
     ),
     components(schemas(
         RegisterRequest, 
@@ -132,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/login", post(handlers::auth_handler::login))
         .route("/google", post(handlers::auth_handler::google_login))
         .route("/logout", post(handlers::auth_handler::logout))
-        .route("/recover", post(handlers::auth_password))
+        .route("/recover", post(handlers::auth_handler::recover_password))
         .route("/verify-recovery-code", post(handlers::auth_handler::verify_recovery_code))
         .route("/me", get(handlers::auth_handler::get_current_user))
         .route("/users/:id", put(handlers::auth_handler::update_user))
