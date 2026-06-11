@@ -64,3 +64,7 @@ vendor/
 # Allowlist for Front-end lib
 !Front-end/src/lib/
 !Front-end/src/lib/**
+certs/ssh-key-2026-06-03.key
+certs/ssh-key-2026-06-04.key
+certs/ssh-key-2026-06-07.key
+certs/ssh-key-2026-06-06.key
