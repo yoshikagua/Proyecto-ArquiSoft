@@ -111,8 +111,6 @@ export function SuccessMessage({ data, paymentUser }) {
         >
           Hacer otra donación
         </a>
-<<<<<<< HEAD
-=======
 
         {/* Volver al inicio */}
         <a
@@ -121,7 +119,6 @@ export function SuccessMessage({ data, paymentUser }) {
         >
           Volver a la página principal
         </a>
->>>>>>> origin/interoperabilidad
       </div>
     </div>
   );
