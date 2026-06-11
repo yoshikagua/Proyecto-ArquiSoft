@@ -47,7 +47,9 @@ export const PartiturasProvider = ({ children }: { children: ReactNode }) => {
     descargas: score.downloads || 0,
     favorito: score.favorito ?? false,
     descripcion: score.description || "",
-    fileUrl: score.file_url,
+    fileUrl: score.file_url
+      ? `/scores/${score.file_url.split('/scores/').pop()?.split('?')[0] || ''}`
+      : '',
     comentarios: (score.comentarios || []).map((comment) => ({
       id: comment.id,
       usuario: comment.usuario,

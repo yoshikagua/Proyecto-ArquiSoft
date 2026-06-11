@@ -19,9 +19,13 @@ INTERNAL_SECRET = os.getenv("INTERNAL_SERVICE_SECRET", "super-secret-internal-cl
 
 @app.middleware("http")
 async def verify_gateway_signature(request: Request, call_next):
+    # Excepción para descarga pública de partituras
+    if request.url.path.startswith("/scores") and request.method == "GET":
+        return await call_next(request)
+    
     if request.url.path in ["/health", "/docs", "/openapi.json"]:
         return await call_next(request)
-        
+            
     service_name = request.headers.get("X-Service-Name")
     timestamp_str = request.headers.get("X-Service-Timestamp")
     signature_hex = request.headers.get("X-Service-Signature")

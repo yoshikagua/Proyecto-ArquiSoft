@@ -9,6 +9,9 @@ RUN npm ci
 
 COPY . .
 
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
 # Compila la aplicación de React/Vite (genera la carpeta /app/dist)
 # Nota: Al compilar en producción, Vite inyectará las variables de entorno que definimos en Kubernetes
 RUN npm run build

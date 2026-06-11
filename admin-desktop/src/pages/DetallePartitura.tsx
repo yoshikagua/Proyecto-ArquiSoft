@@ -131,7 +131,15 @@ const DetallePartitura = () => {
                 return;
             }
 
-            console.log("Iniciando descarga de:", partituraBase.fileUrl);
+            // Convertir URL absoluta HTTP a ruta relativa /scores/... para evitar Mixed Content
+            let downloadUrl = partituraBase.fileUrl;
+            if (downloadUrl && downloadUrl.includes('/scores/')) {
+                const segments = downloadUrl.split('/scores/');
+                if (segments.length > 1) {
+                    downloadUrl = `/scores/${segments[1].split('?')[0]}`;
+                }
+            }
+            console.log("Iniciando descarga de:", downloadUrl);
 
             // Mostrar toast de progreso
             toast.info(`Descargando "${partituraBase.titulo}"…`, { duration: Infinity });
@@ -140,7 +148,7 @@ const DetallePartitura = () => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-            const response = await fetch(partituraBase.fileUrl, {
+            const response = await fetch(downloadUrl, {
                 signal: controller.signal,
                 headers: {
                     "Cache-Control": "no-cache",
@@ -168,7 +176,7 @@ const DetallePartitura = () => {
                 throw new Error("El archivo descargado está vacío");
             }
 
-            // Extraer extensión del URL, ignorando query parameters si existen
+            // Extraer extensión del URL original, ignorando query parameters si existen
             const urlWithoutQuery = partituraBase.fileUrl.split('?')[0];
             const extensionMatch = urlWithoutQuery.match(/\.([a-zA-Z0-9]+)$/);
             const extension = extensionMatch ? extensionMatch[1].toLowerCase() : "pdf";

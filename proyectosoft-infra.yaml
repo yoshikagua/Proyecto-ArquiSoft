@@ -13,7 +13,7 @@ data:
   INTERNAL_SERVICE_SECRET: "super-secret-internal-cluster-key-change-me"
   JWT_ALGORITHM: "HS256"
   BUCKET_NAME: "scores"
-  MINIO_PUBLIC_URL: "http://157.137.220.215:9000"
+  MINIO_PUBLIC_URL: "https://157.137.220.215/scores"
   FRONTEND_URL: "https://157.137.220.215:8080"
   VITE_API_URL: "https://157.137.220.215/api"
   # === NUEVAS VARIABLES INTRODUCIDAS ===
@@ -170,7 +170,7 @@ spec:
       - name: oci-regcred
       containers:
       - name: mf-payments
-        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/mf-payments:v1
+        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/mf-payments:latest
         ports:
         - containerPort: 3000
         env:
@@ -210,7 +210,7 @@ spec:
       - name: oci-regcred
       containers:
       - name: metadata-api
-        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/metadata-api:v1
+        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/metadata-api:latest
         ports:
         - containerPort: 8000
         env:
@@ -285,7 +285,7 @@ spec:
       - name: oci-regcred
       containers:
       - name: files-api
-        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/files-api:v1
+        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/files-api:latest
         ports:
         - containerPort: 8000
         env:
@@ -383,7 +383,7 @@ spec:
       - name: oci-regcred
       containers:
       - name: notification-worker
-        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/notification-producer:v2 # Usa la v2 que tiene el email.php corregido
+        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/notification-worker:v2 # Usa la v2 que tiene el email.php corregido
         command: ["php", "email.php"] # 👈 Obligamos a ejecutar el Worker de fondo
         env:
         - name: DB_HOST
@@ -430,7 +430,7 @@ spec:
       - name: oci-regcred
       containers:
       - name: api-gateway
-        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/api-gateway:v3
+        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/api-gateway:latest
         ports:
         - containerPort: 8000
         env:
@@ -480,7 +480,7 @@ spec:
       - name: oci-regcred
       containers:
       - name: frontend
-        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/frontend:v7 # <--- Forzamos la v3 de producción
+        image: bog.ocir.io/axun7j4h4xhn/proyectosoft/frontend:latest # <--- Forzamos la v3 de producción
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
