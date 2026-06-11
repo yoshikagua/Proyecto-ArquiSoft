@@ -119,6 +119,13 @@ const SubirPartitura = () => {
 
     /** Valida y almacena el archivo PDF seleccionado */
     const procesarArchivo = (file: File) => {
+        const caracteresEspeciales = /[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.\-_()]/;
+        if (caracteresEspeciales.test(file.name)) {
+            setArchivoError("El nombre del archivo no puede contener caracteres especiales.");
+            setArchivoSeleccionado(null);
+            return;
+        }
+
         if (file.type !== "application/pdf") {
             setArchivoError("Solo se permiten archivos PDF.");
             setArchivoSeleccionado(null);

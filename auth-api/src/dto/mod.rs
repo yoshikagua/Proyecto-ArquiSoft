@@ -5,4 +5,5 @@ pub mod verify_recovery_code_request;
 pub mod login_request;
 pub mod update_user_request;
 pub mod change_password_request;
+pub mod google_auth_request;
 

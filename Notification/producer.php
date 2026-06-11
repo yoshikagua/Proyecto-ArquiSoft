@@ -44,7 +44,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 }
 
 try {
-    // Conexión a RabbitMQ
+    // Conexión a RabbitMQ dinámica para la nube
     $connection = new AMQPStreamConnection(
         env_value('RABBITMQ_HOST', 'rabbitmq'),
         (int) env_value('RABBITMQ_PORT', 5672),

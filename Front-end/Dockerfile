@@ -1,9 +1,14 @@
+<<<<<<< HEAD
 # === ETAPA 1: COMPILACIÓN ===
 FROM node:20-alpine AS builder
+=======
+FROM node:20-alpine
+>>>>>>> origin/interoperabilidad
 
 WORKDIR /app
 
 COPY package*.json ./
+<<<<<<< HEAD
 # Instalamos todas las dependencias para poder compilar
 RUN npm ci
 
@@ -30,3 +35,12 @@ RUN echo 'server { \
 EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]
+=======
+RUN npm ci
+
+COPY . .
+
+EXPOSE 8080
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "8080"]
+>>>>>>> origin/interoperabilidad

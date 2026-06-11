@@ -19,6 +19,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+<<<<<<< HEAD
+=======
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
+
+>>>>>>> origin/interoperabilidad
 class SignUpRequest(BaseModel):
     email: str
     password: str
@@ -100,6 +107,44 @@ async def login(request: LoginRequest):
         )
 
 
+<<<<<<< HEAD
+=======
+@router.post("/google")
+async def google_login(request: GoogleAuthRequest):
+    """
+    Proxy para el login con Google Identity Services.
+    Redirecciona el ID token (credential) a la API de usuarios.
+    """
+    try:
+        internal_headers = generate_internal_service_headers()
+        headers = {
+            **internal_headers,
+            "Content-Type": "application/json"
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.user_api_url}/auth/google",
+                json=request.model_dump(),
+                headers=headers,
+                timeout=30.0,
+            )
+
+        if response.status_code >= 400:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=_extract_upstream_error_message(response, "Error al autenticar con Google"),
+            )
+
+        return response.json()
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Error al conectar con el servicio de autenticación: {str(e)}"
+        )
+
+
+>>>>>>> origin/interoperabilidad
 @router.post("/signup")
 async def signup(request: SignUpRequest):
     """

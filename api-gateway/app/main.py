@@ -3,6 +3,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config.settings import settings
 from .routers import auth, storage, notifications, payments
+<<<<<<< HEAD
+=======
+import os
+>>>>>>> origin/interoperabilidad
 
 # Crear aplicación FastAPI
 app = FastAPI(
@@ -32,11 +36,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+<<<<<<< HEAD
 # Incluir routers homologados con el prefijo /api
 app.include_router(auth.router, prefix="/api")
 app.include_router(storage.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
+=======
+# Incluir routers
+app.include_router(auth.router)
+app.include_router(storage.router)
+app.include_router(notifications.router)
+app.include_router(payments.router, prefix="/api")
+app.include_router(payments.router)
+
+>>>>>>> origin/interoperabilidad
 
 @app.get("/")
 async def root():
@@ -50,8 +64,20 @@ async def root():
 
 @app.get("/health")
 async def health():
+<<<<<<< HEAD
     """Health check del gateway"""
     return {"status": "healthy"}
+=======
+    return {
+        "status": "healthy",
+        "instance": os.getenv("INSTANCE_NAME"),
+        "services": {
+            "auth": "ok",
+            "storage": "ok",
+            "notifications": "ok"
+        }
+    }
+>>>>>>> origin/interoperabilidad
 
 
 if __name__ == "__main__":

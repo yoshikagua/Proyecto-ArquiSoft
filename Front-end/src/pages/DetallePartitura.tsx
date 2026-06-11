@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import {
     ArrowLeft,
     Download,
+    Eye,
     ThumbsUp,
     MessageSquare,
     User,
@@ -25,6 +26,7 @@ import {
     Send,
     BookOpen,
     Edit,
+    X,
 } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -56,6 +58,7 @@ const DetallePartitura = () => {
     // ── Datos de usuario autenticado ──
     const { user } = useAuth();
     const [showLoginAlert, setShowLoginAlert] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     const nombreFormateado = (() => {
         if (!user || (!user.nombre && !user.email)) return "Usuario Anónimo";
@@ -122,60 +125,99 @@ const DetallePartitura = () => {
         // Marcar como descargado en el backend inmediatamente
         void incrementDescargas(partituraBase.id);
 
- try {
-	if (!partituraBase.fileUrl) {
+        try {
+            // Validar que el archivo tenga URL
+            if (!partituraBase.fileUrl) {
                 toast.error("No hay archivo disponible para descargar");
                 console.warn("fileUrl no está disponible para:", partituraBase.id);
                 return;
             }
-    console.log("Iniciando descarga de:", partituraBase.fileUrl);
 
-    // 1. Mostrar toast de progreso inicial
-    toast.info(`Abriendo descarga de "${partituraBase.titulo}"…`, { duration: 3000 });
+            console.log("Iniciando descarga de:", partituraBase.fileUrl);
 
-    console.log("fileUrl Original:", partituraBase.fileUrl);
-    
-    // 2. Cambiamos la IP por la de tu MinIO nativo
-    const secureUrl = partituraBase.fileUrl.replace(/^http:\/\/[^/]+:9000/, "http://158.247.127.223:9000");
-    console.log("Enlace final de descarga directa:", secureUrl);
+            // Mostrar toast de progreso
+            toast.info(`Descargando "${partituraBase.titulo}"…`, { duration: Infinity });
 
-    // 3. CONSERVAMOS TU LÓGICA DE NOMBRE (Para que NO quede el nombre raro del hash)
-    const urlWithoutQuery = partituraBase.fileUrl.split('?')[0];
-    const extensionMatch = urlWithoutQuery.match(/\.([a-zA-Z0-9]+)$/);
-    const extension = extensionMatch ? extensionMatch[1].toLowerCase() : "pdf";
+            // Hacer fetch del archivo con timeout y manejo mejorado de errores
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-    // Limpiar título para que sea un nombre de archivo válido
-    const safeTitle = (partituraBase.titulo || "partitura")
-        .replace(/[^a-zA-Z0-9 _-]/g, "_")
-        .trim();
+            const response = await fetch(partituraBase.fileUrl, {
+                signal: controller.signal,
+                headers: {
+                    "Cache-Control": "no-cache",
+                }
+            });
 
-    // Generar nombre de archivo con la misma extensión original
-    const filename = `${safeTitle}.${extension}`;
+            clearTimeout(timeoutId);
 
-    // 4. 🎯 TRUCO MAESTRO: Descarga nativa directa con tu nombre limpio
-    // Al usar un elemento 'a' asignándole el atributo 'download', el navegador
-    // descarga el archivo de la URL usando el nombre de archivo que tú le ordenes.
-    const link = document.createElement('a');
-    link.href = secureUrl;
-    link.target = '_blank'; // Abre el flujo fuera del fetch para esquivar el Mixed Content
-    link.setAttribute('download', filename); // 👈 ¡Aquí le inyectamos tu nombre limpio!
+            if (!response.ok) {
+                const errorMsg = `Error HTTP ${response.status} - ${response.statusText}`;
+                console.error("Fetch error:", errorMsg);
+                throw new Error(errorMsg);
+            }
 
-    document.body.appendChild(link);
-    link.click();
-    
-    // Limpieza inmediata del elemento HTML temporal
-    document.body.removeChild(link);
+            // Verificar que hay contenido
+            const contentLength = response.headers.get("content-length");
+            if (contentLength === "0") {
+                throw new Error("El archivo está vacío");
+            }
 
-    // Notificar éxito
-    toast.success(`Archivo "${filename}" enviado a descargas`);
+            // Convertir a blob
+            const blob = await response.blob();
 
-} catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error detallado al descargar:", errorMessage);
-    toast.error("Error al descargar el archivo");
-}
-    
-};
+            if (blob.size === 0) {
+                throw new Error("El archivo descargado está vacío");
+            }
+
+            // Extraer extensión del URL, ignorando query parameters si existen
+            const urlWithoutQuery = partituraBase.fileUrl.split('?')[0];
+            const extensionMatch = urlWithoutQuery.match(/\.([a-zA-Z0-9]+)$/);
+            const extension = extensionMatch ? extensionMatch[1].toLowerCase() : "pdf";
+
+            // Limpiar título para que sea un nombre de archivo válido
+            const safeTitle = (partituraBase.titulo || "partitura")
+                .replace(/[^a-zA-Z0-9 _-]/g, "_")
+                .trim();
+
+            // Generar nombre de archivo con la misma extensión original
+            const filename = `${safeTitle}.${extension}`;
+
+            // Crear URL temporal y elemento anchor
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            link.style.display = "none";
+            document.body.appendChild(link);
+
+            // Disparar descarga
+            link.click();
+
+            // Limpiar recursos después de un delay
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+
+            // Notificar éxito
+            toast.success(`Archivo "${filename}" descargado correctamente`);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error("Error detallado al descargar:", errorMessage);
+
+            // Mostrar error específico
+            if (errorMessage.includes("AbortError")) {
+                toast.error("Descarga cancelada por timeout");
+            } else if (errorMessage.includes("HTTP")) {
+                toast.error(`Error al acceder al archivo: ${errorMessage}`);
+            } else if (errorMessage.includes("vacío")) {
+                toast.error("El archivo está vacío o corrupto");
+            } else {
+                toast.error("Error al descargar el archivo");
+            }
+        }
+    };
 
     /** Envía un nuevo comentario a la lista local */
     const handleEnviarComentario = async () => {
@@ -284,6 +326,21 @@ const DetallePartitura = () => {
                         >
                             <Download className="h-4 w-4" />
                             Descargar PDF
+                        </button>
+
+                        {/* Botón ver partitura */}
+                        <button
+                            onClick={() => {
+                                if (!partituraBase.fileUrl) {
+                                    toast.error("No hay archivo disponible para previsualizar");
+                                    return;
+                                }
+                                setShowPreview(true);
+                            }}
+                            className="flex items-center gap-2 rounded-lg border border-primary bg-primary/10 px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary/20 active:scale-[0.98]"
+                        >
+                            <Eye className="h-4 w-4" />
+                            Ver Partitura
                         </button>
 
                         {/* Botón editar (solo para el creador) */}
@@ -448,6 +505,45 @@ const DetallePartitura = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* ── Modal de previsualización PDF ── */}
+            {showPreview && partituraBase.fileUrl && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                    onClick={() => setShowPreview(false)}
+                >
+                    <div
+                        className="relative flex flex-col w-[95vw] h-[90vh] max-w-5xl rounded-2xl bg-card shadow-2xl overflow-hidden border border-secondary/20"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header del modal */}
+                        <div className="flex items-center justify-between border-b border-secondary/15 bg-background px-6 py-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <Eye className="h-5 w-5 text-primary flex-shrink-0" />
+                                <h3 className="font-serif text-lg font-semibold text-foreground truncate">
+                                    {partituraBase.titulo}
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => setShowPreview(false)}
+                                className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary/10 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors flex-shrink-0"
+                                aria-label="Cerrar previsualización"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Iframe del PDF */}
+                        <div className="flex-1 bg-neutral-200">
+                            <iframe
+                                src={partituraBase.fileUrl}
+                                title={`Previsualización de ${partituraBase.titulo}`}
+                                className="w-full h-full border-0"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </MainLayout>
     );
 };

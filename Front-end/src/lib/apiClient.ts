@@ -346,6 +346,24 @@ export const authApi = {
   },
 
 /**
+   * Inicia sesión (o crea cuenta) con un ID token de Google Identity Services
+   * POST /api/auth/google
+   */
+  loginWithGoogle: async (credential: string): Promise<LoginResponse> => {
+    const raw = await fetchApi<LoginResponse>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    });
+
+    const normalizedToken = raw.access_token || raw.token;
+    return {
+      ...raw,
+      access_token: normalizedToken,
+      token_type: raw.token_type || "bearer",
+    };
+  },
+
+/**
    * Crea una nueva cuenta de usuario
    * POST /auth/signup (El prefijo /api se inyecta automáticamente por la base URL)
    */

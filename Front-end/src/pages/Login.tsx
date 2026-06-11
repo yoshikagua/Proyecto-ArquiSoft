@@ -11,19 +11,33 @@
  *    se redirige a esa ruta; de lo contrario a /partituras.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mail, Lock, ArrowLeft } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import AuthLayout from "@/layouts/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
-import { authApi, ApiClientError } from "@/lib/apiClient";
+import { authApi, ApiClientError, type LoginResponse } from "@/lib/apiClient";
 
 const normalizeRole = (role?: string): "user" | "admin" | "superadmin" => {
   const normalized = (role || "").toLowerCase();
   if (normalized.includes("super")) return "superadmin";
   if (normalized.includes("admin")) return "admin";
   return "user";
+};
+
+const buildAuthUser = (user: LoginResponse["user"], fallbackEmail: string) => {
+  const firstName = user?.first_name || user?.nombre || fallbackEmail.split("@")[0];
+  const lastName = user?.last_name || "";
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  return {
+    id: user?.id ? Number(user.id) : undefined,
+    nombre: fullName,
+    avatar: firstName.charAt(0).toUpperCase(),
+    email: user?.email || fallbackEmail,
+    role: normalizeRole(user?.role),
+  };
 };
 
 const Login = () => {
@@ -35,6 +49,7 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+  const googleBtnRef = useRef<HTMLDivElement>(null);
 
   /**
    * Ruta a la que redirigir tras autenticarse exitosamente.
@@ -68,17 +83,7 @@ const Login = () => {
       }
 
       // Guardar sesión en el contexto de autenticación
-      const firstName = response.user?.first_name || response.user?.nombre || email.split("@")[0];
-      const lastName = response.user?.last_name || "";
-      const fullName = `${firstName} ${lastName}`.trim();
-
-      login(token, {
-        id: response.user?.id ? Number(response.user.id) : undefined,
-        nombre: fullName,
-        avatar: firstName.charAt(0).toUpperCase(),
-        email: response.user?.email || email,
-        role: normalizeRole(response.user?.role),
-      });
+      login(token, buildAuthUser(response.user, email));
 
       // Redirigir a la ruta de origen (o /partituras)
       navigate(from, { replace: true });
@@ -103,6 +108,87 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  const handleGoogleCredential = async (response: GoogleCredentialResponse) => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await authApi.loginWithGoogle(response.credential);
+      const token = result.access_token || result.token;
+
+      if (!token) {
+        throw new ApiClientError("Respuesta de autenticación inválida: token ausente", 500, {
+          message: "Token ausente",
+        });
+      }
+
+      login(token, buildAuthUser(result.user, result.user?.email || ""));
+      navigate(from, { replace: true });
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        if (err.status === 0) {
+          setError(
+            "No se pudo conectar con el servidor. Verifica que el gateway esté corriendo en localhost:8000"
+          );
+        } else if (err.status === 401) {
+          setError("No se pudo verificar tu cuenta de Google. Inténtalo de nuevo.");
+        } else if (err.status === 503) {
+          setError("El servicio de autenticación no está disponible. Intenta más tarde.");
+        } else {
+          setError(err.message || "Error en la autenticación con Google");
+        }
+      } else {
+        setError("Error desconocido durante la autenticación con Google");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId || !googleBtnRef.current) return;
+
+    let cancelled = false;
+
+    const renderGoogleButton = () => {
+      if (cancelled || !window.google || !googleBtnRef.current) return;
+
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleGoogleCredential,
+      });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: "outline",
+        size: "large",
+        width: 320,
+        text: "continue_with",
+        locale: "es",
+      });
+    };
+
+    if (window.google) {
+      renderGoogleButton();
+    } else {
+      // El script de GSI se carga con `async defer`; reintentar hasta que esté listo.
+      const interval = setInterval(() => {
+        if (window.google) {
+          clearInterval(interval);
+          renderGoogleButton();
+        }
+      }, 100);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <AuthLayout>
@@ -217,9 +303,12 @@ const Login = () => {
         {/* Divider */}
         <div className="my-6 flex items-center gap-3">
           <div className="h-px flex-1 bg-secondary/30" />
-          <span className="text-xs text-secondary">✦</span>
+          <span className="text-xs text-muted-foreground uppercase font-medium">O</span>
           <div className="h-px flex-1 bg-secondary/30" />
         </div>
+
+        {/* Google Login (renderizado por Google Identity Services) */}
+        <div ref={googleBtnRef} className="mb-6 flex justify-center" />
 
         {/* Create account */}
         <p className="text-center text-sm text-muted-foreground">

@@ -1,65 +1,71 @@
 services:
   # === CAPA DE DATOS (aislada, sin puertos expuestos) ===
 
-#  postgres:
- #   image: postgres:15-alpine
-  #  container_name: proyectosoft-postgres
-   # environment:
-   #   POSTGRES_USER: authuser
-   #   POSTGRES_PASSWORD: authpass
-   #   POSTGRES_DB: auth_db
-   # volumes:
-   #   - postgres_data:/var/lib/postgresql/data
-   # healthcheck:
-   #   test: ["CMD-SHELL", "pg_isready -U authuser -d auth_db"]
-   #   interval: 5s
-   #   timeout: 5s
-    #  retries: 10
-    #networks:
-    #  - data-network
+  postgres:
+    image: postgres:15-alpine
+    container_name: proyectosoft-postgres
+    environment:
+      POSTGRES_USER: authuser
+      POSTGRES_PASSWORD: authpass
+      POSTGRES_DB: auth_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authuser -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - data-network
 
-#  payments-postgres:
-#    image: postgres:15-alpine
-#    container_name: payments-postgres
-#    environment:
-#      POSTGRES_USER: postgres
-#      POSTGRES_PASSWORD: postgres
-#      POSTGRES_DB: payments_db
-#    volumes:
-#      - payments_postgres_data:/var/lib/postgresql/data
-#    healthcheck:
-#      test: ["CMD-SHELL", "pg_isready -U postgres -d payments_db"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
-#    networks:
-#      - data-network
+  payments-postgres:
+    image: postgres:15-alpine
+    container_name: payments-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: payments_db
+    volumes:
+      - payments_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d payments_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data-network
 
-#  mongo:
-#    image: mongo:7
-#    container_name: proyectosoft-mongo
-#    volumes:
-#      - mongo_data:/data/db
-#    networks:
-#      - data-network
+  mongo:
+    image: mongo:7
+    container_name: proyectosoft-mongo
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - data-network
 
-#  notification-postgres:
-#    image: postgres:15-alpine
-#    container_name: notification-postgres
-#    environment:
-#      POSTGRES_DB: emails_db
-#      POSTGRES_USER: postgres
-#      POSTGRES_PASSWORD: password
-#    volumes:
-#      - postgres_notification_data:/var/lib/postgresql/data
-#      - ./Notification/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-#    healthcheck:
-#      test: ["CMD-SHELL", "pg_isready -U postgres -d emails_db"]
-#      interval: 10s
-##      timeout: 5s
-#      retries: 5
-#    networks:
-#      - data-network
+  notification-postgres:
+    image: postgres:15-alpine
+    container_name: notification-postgres
+    environment:
+      POSTGRES_DB: emails_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_notification_data:/var/lib/postgresql/data
+      - ./Notification/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d emails_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: caching-redis
+    networks:
+      - data-network
 
   # === CAPA DE APLICACIÓN (solo acceso interno) ===
 
@@ -67,20 +73,19 @@ services:
     build:
       context: ./auth-api
     container_name: proyectosoft-user-api
-    #network_mode: "host"
     environment:
-      DATABASE_URL: postgres://authuser:authpass@10.0.0.68:5432/auth_db
+      DATABASE_URL: postgres://authuser:authpass@postgres:5432/auth_db
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
-      # NUEVO: Capa de Validación Interna
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-super-secret-internal-cluster-key-change-me}
       NOTIFICATION_URL: http://notification-producer:8000
-   # depends_on:
-   #   postgres:
-   #     condition: service_healthy
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - services-network
       - data-network
-      - edge-network
+      - messaging-network
 
   payments_app:
     build:
@@ -90,17 +95,16 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3000
-      DB_HOST: 10.0.0.68
+      DB_HOST: payments-postgres
       DB_PORT: 5432
       DB_NAME: payments_db
       DB_USER: postgres
-      DB_PASSWORD: 4536141
-      FRONTEND_URL: http://157.137.208.150:8080
-      # NUEVO: Listo para cuando implementes la validación en Node.js
+      DB_PASSWORD: postgres
+      FRONTEND_URL: http://localhost:8080
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-super-secret-internal-cluster-key-change-me}
-    #depends_on:
-    #  payments-postgres:
-    #    condition: service_healthy
+    depends_on:
+      payments-postgres:
+        condition: service_healthy
     volumes:
       - ./payments_app:/app
       - /app/node_modules
@@ -108,7 +112,6 @@ services:
     networks:
       - services-network
       - data-network
-      - edge-network
 
   mf_payments:
     build:
@@ -118,55 +121,52 @@ services:
     environment:
       NODE_ENV: development
       PAYMENTS_API_URL: http://payments_app:3000
-    # 🔒 CAMBIO DE ARQUITECTURA: Eliminamos ports "3003:3000" para evitar accesos no cifrados por fuera del proxy
     expose:
       - "3000"
     depends_on:
       - payments_app
     networks:
-      - edge-network       # Conexión con el Proxy
-      - services-network   # Conexión con payments_app
+      - edge-network
+      - services-network
 
   metadata-api:
     build:
       context: ./metadata-api
     container_name: gateway-metadata-api
     environment:
-      MONGO_URI: mongodb://10.0.0.68:27017/tu_db
+      MONGO_URI: mongodb://proyectosoft-mongo:27017
       DB_NAME: music_db
+      REDIS_HOST: caching-redis
+      REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
       JWT_ALGORITHM: HS256
       BUCKET_NAME: scores
-      MINIO_PUBLIC_URL: http://157.137.208.150:9000
-      # 🔒 AÑADIDO: Mapeo del secreto para validación HMAC
+      MINIO_PUBLIC_URL: http://localhost:9000
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
-    #depends_on:
-      #mongo:
-      #  condition: service_started
+    depends_on:
+      mongo:
+        condition: service_started
     networks:
       - services-network
       - data-network
-      - edge-network
 
   files-api:
     build:
       context: ./files-api
     container_name: gateway-files-api
     environment:
-      MINIO_ENDPOINT: 10.0.0.68:9000
+      MINIO_ENDPOINT: proyectosoft-minio:9000
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: password
       BUCKET_NAME: scores
-      # 🔒 AÑADIDO: Mapeo del secreto para validación HMAC
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
-   # depends_on:
-   #   minio:
-   #     condition: service_started
+    depends_on:
+      minio:
+        condition: service_started
     networks:
       - services-network
       - data-network
       - storage-network
-      - edge-network
 
   notification-producer:
     build:
@@ -174,13 +174,12 @@ services:
       dockerfile: Dockerfile
     container_name: notification-producer
     command: ["php", "-S", "0.0.0.0:8000", "router.php"]
-    #depends_on:
-      #notification-rabbitmq:
-        #condition: service_healthy
+    depends_on:
+      notification-rabbitmq:
+        condition: service_healthy
     environment:
-      RABBITMQ_HOST: 10.0.0.68
+      RABBITMQ_HOST: notification-rabbitmq
       RABBITMQ_PORT: 5672
-      # 🔒 AÑADIDO: Requerido por router.php (getenv('INTERNAL_SERVICE_SECRET'))
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
     networks:
       - services-network
@@ -192,67 +191,65 @@ services:
       dockerfile: Dockerfile
     container_name: notification-worker
     command: ["php", "email.php"]
- #   depends_on:
- #     notification-rabbitmq:
- #       condition: service_healthy
-      #notification-postgres:
-      #  condition: service_healthy
+    depends_on:
+      notification-rabbitmq:
+        condition: service_healthy
+      notification-postgres:
+        condition: service_healthy
     environment:
-      RABBITMQ_HOST: 10.0.0.68
+      RABBITMQ_HOST: notification-rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: admin
       RABBITMQ_PASSWORD: password
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
-      DB_HOST: 10.0.0.68
+      DB_HOST: notification-postgres
       DB_PORT: 5432
       DB_NAME: emails_db
       DB_USER: postgres
-      DB_PASSWORD: 4536141
+      DB_PASSWORD: password
     networks:
       - services-network
       - data-network
       - messaging-network
     restart: unless-stopped
 
-#  notification-rabbitmq:
-#    image: rabbitmq:3-management-alpine
-#    container_name: notification-rabbitmq
-#    environment:
-#      RABBITMQ_DEFAULT_USER: guest
-#      RABBITMQ_DEFAULT_PASS: guest
-#    ports:
-#      - "15672:15672"    # Expón solo la UI de gestión para acceso web (no el puerto 5672 para prod)
-#    healthcheck:
-#      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
-#    networks:
-#      - messaging-network
+  notification-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: notification-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - messaging-network
 
-  # === INFRAESTRUCTURA DE ALMACENAMIENTO (opcionalmente accesible desde fuera) ===
+  # === INFRAESTRUCTURA DE ALMACENAMIENTO ===
 
-  #minio:
-  #  image: minio/minio
-  #  platform: linux/amd64
-  #  container_name: proyectosoft-minio
-  #  environment:
-  #    MINIO_ROOT_USER: admin
-  #    MINIO_ROOT_PASSWORD: password
-  #  command: server /data --console-address ":9001"
-  #  ports:
-  #    - "9000:9000"   # API pública si lo requieres.
-  #    - "9001:9001"   # UI de administración
-  #  volumes:
-  #    - minio_data:/data
-  #  networks:
-  #    - storage-network
-  #    - edge-network
+  minio:
+    image: minio/minio
+    platform: linux/amd64
+    container_name: proyectosoft-minio
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - storage-network
+      - edge-network
 
+  # === CAPA DE EXPOSICIÓN ===
 
-  # === CAPA DE EXPOSICIÓN (solo servicios de entrada al sistema) ===
-
-# === EL ESCUDO PERIMETRAL: STANDALONE WAF ===
   standalone-waf:
     image: owasp/modsecurity-crs:nginx
     container_name: proyectosoft-standalone-waf
@@ -265,7 +262,6 @@ services:
     volumes:
       - ./certs/gateway.crt:/etc/nginx/certs/tls.crt:ro
       - ./certs/gateway.key:/etc/nginx/certs/tls.key:ro
-      # regla personalizada para pesistencia de graphql 
       - ./coraza/graphql-before.conf:/etc/modsecurity.d/owasp-crs/plugins/graphql-before.conf:ro
       - ./coraza/methods-before.conf:/etc/modsecurity.d/owasp-crs/plugins/methods-before.conf:ro
     depends_on:
@@ -273,7 +269,6 @@ services:
     networks:
       - edge-network
 
-  # === CAPA DE EXPOSICIÓN INTERNA ===
   web-reverse-proxy:
     image: nginx:alpine
     container_name: proyectosoft-secure-proxy
@@ -284,7 +279,9 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certs:/etc/nginx/certs:ro
     depends_on:
-      - api-gateway
+      - api-gateway-1
+      - api-gateway-2
+      - api-gateway-3
       - mf_payments
       - frontend
     networks:
@@ -294,20 +291,23 @@ services:
     image: nginx:alpine
     container_name: proyectosoft-desktop-proxy
     ports:
-      - "4443:4443" # Canal seguro HTTPS exclusivo para admin-desktop (Tauri)
+      - "4443:4443"
     volumes:
       - ./nginx-desktop.conf:/etc/nginx/nginx.conf:ro
       - ./certs-desktop:/etc/nginx/certs-desktop:ro
     depends_on:
-      - api-gateway
+      - api-gateway-1
+      - api-gateway-2
+      - api-gateway-3
     networks:
       - edge-network
 
-  api-gateway:
+  # === BALANCEADOR DE CARGA: 3 réplicas del api-gateway ===
+
+  api-gateway-1:
     build:
       context: ./api-gateway
-    container_name: gateway-api-gateway
-    #network_mode: "host"
+    container_name: gateway-api-gateway-1
     environment:
       DEBUG: "True"
       GATEWAY_PORT: 8000
@@ -315,11 +315,70 @@ services:
       NOTIFICATION_URL: http://notification-producer:8000
       METADATA_API_URL: http://metadata-api:8000/storage
       FILES_API_URL: http://files-api:8000
-      FRONTEND_URL: https://157.137.208.150:8080 # Cambiado a protocolo seguro HTTPS
-      # NUEVO: Variables del Emisor del Canal Seguro Interno
+      FRONTEND_URL: https://localhost:8080
       INTERNAL_SERVICE_NAME: "api-gateway"
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-super-secret-internal-cluster-key-change-me}
-    # CAMBIO DE ARQUITECTURA: Eliminamos ports "8000:8000". Nadie entra al Gateway sin pasar por Nginx TLS.
+      INSTANCE_NAME: gateway-1
+    expose:
+      - "8000"
+    depends_on:
+      user-api:
+        condition: service_started
+      metadata-api:
+        condition: service_started
+      files-api:
+        condition: service_started
+      notification-producer:
+        condition: service_started
+    networks:
+      - edge-network
+      - services-network
+
+  api-gateway-2:
+    build:
+      context: ./api-gateway
+    container_name: gateway-api-gateway-2
+    environment:
+      DEBUG: "True"
+      GATEWAY_PORT: 8000
+      USER_API_URL: http://user-api:3000
+      NOTIFICATION_URL: http://notification-producer:8000
+      METADATA_API_URL: http://metadata-api:8000/storage
+      FILES_API_URL: http://files-api:8000
+      FRONTEND_URL: https://localhost:8080
+      INTERNAL_SERVICE_NAME: "api-gateway"
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-super-secret-internal-cluster-key-change-me}
+      INSTANCE_NAME: gateway-2
+    expose:
+      - "8000"
+    depends_on:
+      user-api:
+        condition: service_started
+      metadata-api:
+        condition: service_started
+      files-api:
+        condition: service_started
+      notification-producer:
+        condition: service_started
+    networks:
+      - edge-network
+      - services-network
+
+  api-gateway-3:
+    build:
+      context: ./api-gateway
+    container_name: gateway-api-gateway-3
+    environment:
+      DEBUG: "True"
+      GATEWAY_PORT: 8000
+      USER_API_URL: http://user-api:3000
+      NOTIFICATION_URL: http://notification-producer:8000
+      METADATA_API_URL: http://metadata-api:8000/storage
+      FILES_API_URL: http://files-api:8000
+      FRONTEND_URL: https://localhost:8080
+      INTERNAL_SERVICE_NAME: "api-gateway"
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-super-secret-internal-cluster-key-change-me}
+      INSTANCE_NAME: gateway-3
     expose:
       - "8000"
     depends_on:
@@ -340,14 +399,14 @@ services:
       context: ./Front-end
     container_name: proyectosoft-frontend
     environment:
-      # 🔒 Las llamadas de Axios/Fetch ahora viajan seguras usando rutas relativas o HTTPS al Proxy
-      VITE_API_URL: https://157.137.208.150/api
-    # 🔒 CAMBIO DE ARQUITECTURA: Eliminamos ports "8080:8080" para obligar a pasar por Nginx TLS
+      VITE_API_URL: https://localhost/api
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     expose:
       - "8080"
     depends_on:
-      api-gateway:
-        condition: service_started
+      - api-gateway-1
+      - api-gateway-2
+      - api-gateway-3
     networks:
       - edge-network
 

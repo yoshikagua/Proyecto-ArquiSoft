@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Json,Path,},
+    extract::{State, Json, Path},
     response::IntoResponse,
     http::StatusCode,
 };
@@ -12,10 +12,12 @@ use crate::dto::verify_recovery_code_request::VerifyRecoveryCodeRequest;
 use crate::dto::login_request::LoginRequest;
 use crate::dto::update_user_request::{UpdateUserRequest, ResetPasswordRequest};
 use crate::dto::change_password_request::ChangePasswordRequest;
+use crate::dto::google_auth_request::GoogleAuthRequest;
 use crate::errors::app_error::AppError;
 use crate::services::auth_service::Claims;
 use sqlx::Row;
 pub use crate::models::user_list_response::{PaginationParams, UserListResponse};
+
 #[utoipa::path(
     post,
     path = "/auth/recover",
@@ -109,7 +111,7 @@ pub async fn verify_recovery_code(
         return Err(AppError::BadRequest);
     }
     if let Err(e) = state.recovery_service
-        .verify_code_only(payload.email.as_str(), payload.code.as_str()) // <--- Usar _only
+        .verify_code_only(payload.email.as_str(), payload.code.as_str())
         .await {
         error!("/auth/verify-recovery-code - error: {:?}", e);
         return Err(e);
@@ -165,6 +167,50 @@ pub async fn login(
 
 #[utoipa::path(
     post,
+    path = "/auth/google",
+    request_body = GoogleAuthRequest,
+    responses(
+        (status = 200, description = "Login con Google exitoso", body = String),
+        (status = 401, description = "Token de Google inválido"),
+    ),
+    tag = "auth"
+)]
+pub async fn google_login(
+    State(state): State<AppState>,
+    Json(payload): Json<GoogleAuthRequest>,
+) -> impl IntoResponse {
+    info!("POST /auth/google");
+
+    let claims = match state.auth_service.google_auth_service.verify(&payload.credential).await {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Error verificando token de Google: {:?}", e);
+            return e.into_response();
+        }
+    };
+
+    match state.auth_service.google_login(claims).await {
+        Ok((user, token)) => {
+            info!("Login con Google exitoso para usuario: {}", user.email);
+            (StatusCode::OK, Json(json!({
+                "token": token,
+                "user": {
+                    "id": user.user_id,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email": user.email
+                }
+            }))).into_response()
+        },
+        Err(e) => {
+            error!("Error en google_login: {:?}", e);
+            e.into_response()
+        }
+    }
+}
+
+#[utoipa::path(
+    post,
     path = "/auth/logout",
     responses(
         (status = 200, description = "Sesión cerrada correctamente"),
@@ -177,7 +223,7 @@ pub async fn login(
 )]
 pub async fn logout(
     State(state): State<AppState>,
-    claims: Claims, // El extractor ahora funciona correctamente
+    claims: Claims,
 ) -> impl IntoResponse {
     match state.auth_service.logout(claims.sub).await {
         Ok(_) => (
@@ -202,7 +248,6 @@ pub async fn get_current_user(
     State(state): State<AppState>,
     claims: Claims,
 ) -> impl IntoResponse {
-    // 1. Realizamos un INNER JOIN para obtener el nombre del rol
     let user = sqlx::query(
         r#"
         SELECT 
@@ -219,14 +264,13 @@ pub async fn get_current_user(
 
     match user {
         Ok(Some(row)) => {
-            use sqlx::Row;
             (StatusCode::OK, Json(json!({
                 "id": row.get::<i32, _>("user_id"),
                 "email": row.get::<String, _>("email"),
                 "first_name": row.get::<String, _>("first_name"),
                 "last_name": row.get::<String, _>("last_name"),
                 "role_id": row.get::<i32, _>("role_id"),
-                "role_name": row.get::<String, _>("role_name"), // <-- Nuevo campo
+                "role_name": row.get::<String, _>("role_name"),
                 "profile_info": row.get::<Option<String>, _>("profile_info")
             }))).into_response()
         },
@@ -253,7 +297,6 @@ pub async fn update_user(
     Json(payload): Json<UpdateUserRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     
-    // 1. Obtener el rol actual del usuario que queremos editar (el destino)
     let target_user_role: i32 = sqlx::query_scalar("SELECT role_id FROM users WHERE user_id = $1")
         .bind(target_id)
         .fetch_optional(&*state.auth_service.pool)
@@ -261,28 +304,22 @@ pub async fn update_user(
         .map_err(|_| AppError::DatabaseError)?
         .ok_or(AppError::BadRequest)?;
 
-    // 2. APLICAR JERARQUÍA DE SEGURIDAD
     if claims.role == 2 {
-        // El ADMIN (2) solo puede editar a USERS (1)
         if target_user_role != 1 {
             error!("Admin {} intentó editar a un no-usuario (Rol {})", claims.sub, target_user_role);
             return Err(AppError::Unauthorized);
         }
-        // El ADMIN no puede ascender a nadie a Admin o SuperAdmin
         if let Some(new_role) = payload.role_id {
             if new_role != 1 { return Err(AppError::Unauthorized); }
         }
     } else if claims.role == 3 {
         // El SUPER_ADMIN (3) puede editar a cualquiera (1 o 2)
-        // (Opcional: evitar que un SuperAdmin se degrade a sí mismo si es el único)
     } else {
-        // Si es ROL 1 (user), solo puede editarse a sí mismo y NO su rol
         if target_id != claims.sub || payload.role_id.is_some() {
             return Err(AppError::Unauthorized);
         }
     }
 
-    // 3. Ejecutar el UPDATE (tu query actual está bien, pero ahora está protegida)
     sqlx::query(
         r#"
         UPDATE users 
@@ -318,7 +355,6 @@ pub async fn reset_password(
     state.recovery_service.consume_code(&payload.email, &payload.code).await?;
 
     use argon2::{password_hash::{PasswordHasher, SaltString}, Argon2};
-    // CORRECCIÓN DEL IMPORT DE OsRng
     use argon2::password_hash::rand_core::OsRng; 
 
     let salt = SaltString::generate(&mut OsRng);
@@ -367,7 +403,6 @@ pub async fn get_all_users(
         return Err(AppError::Unauthorized);
     }
 
-    // Valores por defecto si el usuario no los envía
     let limit = params.limit.unwrap_or(10);
     let offset = params.offset.unwrap_or(0);
 
@@ -414,14 +449,12 @@ pub async fn get_all_users(
     security(("bearer_auth" = [])),
     tag = "auth"
 )]
-
 pub async fn change_password(
     State(state): State<AppState>,
     claims: Claims,
     Json(payload): Json<ChangePasswordRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     
-    // 1. Obtener hash y email
     let row = sqlx::query("SELECT password, email FROM users WHERE user_id = $1")
         .bind(claims.sub)
         .fetch_one(&*state.auth_service.pool)
@@ -431,7 +464,6 @@ pub async fn change_password(
     let current_hash: String = row.get("password");
     let user_email: String = row.get("email");
 
-    // 2. Verificar password anterior con Argon2
     use argon2::{PasswordHash, PasswordVerifier, Argon2};
     let parsed_hash = PasswordHash::new(&current_hash).map_err(|_| AppError::DatabaseError)?;
 
@@ -442,7 +474,6 @@ pub async fn change_password(
         return Err(AppError::Unauthorized);
     }
 
-    // 3. Hashear nueva password
     use argon2::password_hash::{PasswordHasher, SaltString};
     use argon2::password_hash::rand_core::OsRng;
     let salt = SaltString::generate(&mut OsRng);
@@ -451,7 +482,6 @@ pub async fn change_password(
         .map_err(|_| AppError::DatabaseError)?
         .to_string();
 
-    // 4. Update en DB
     sqlx::query("UPDATE users SET password = $1 WHERE user_id = $2")
         .bind(new_hashed_password)
         .bind(claims.sub)
@@ -459,16 +489,14 @@ pub async fn change_password(
         .await
         .map_err(|_| AppError::DatabaseError)?;
 
-    // 5. ENVIAR CORREO usando tu EmailService
-    // IMPORTANTE: Asegúrate de que EmailRequest esté importado o usa la ruta completa
     let email_req = crate::dto::email_request::EmailRequest {
         to: user_email,
         subject: "Seguridad: Tu contraseña ha cambiado".to_string(),
         body: "Hola, te informamos que tu contraseña ha sido actualizada. Si no fuiste tú, contacta a soporte.".to_string(),
     };
 
-    // Usamos el email_service que tienes en el AppState
-    if let Err(e) = state.recovery_service.email_service.send_email(email_req).await {        error!("Error enviando correo de seguridad: {:?}", e);
+    if let Err(e) = state.recovery_service.email_service.send_email(email_req).await {
+        error!("Error enviando correo de seguridad: {:?}", e);
     }
 
     Ok((StatusCode::OK, Json(serde_json::json!({ "message": "Contraseña actualizada" }))))
