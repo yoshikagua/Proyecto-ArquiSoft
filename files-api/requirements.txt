@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+minio
+python-multipart
+pydantic
+pydantic-settings
+python-magic==0.4.27

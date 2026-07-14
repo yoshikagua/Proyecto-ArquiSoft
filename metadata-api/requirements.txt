@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+strawberry-graphql[fastapi]
+motor
+python-multipart
+pydantic
+python-jose
+pydantic-settings
+pymongo
+redis

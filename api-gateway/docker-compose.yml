@@ -1,0 +1,122 @@
+# NOTE: Este compose es para desarrollo local y testing de api-gateway
+# Levanta: user-api (con postgres y mailhog) + api-gateway
+# Uso: docker compose up -d (desde este directorio)
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: gateway-postgres
+    environment:
+      POSTGRES_USER: authuser
+      POSTGRES_PASSWORD: authpass
+      POSTGRES_DB: auth_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authuser -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: gateway-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  user-api:
+    build:
+      context: ../auth-api
+    container_name: gateway-user-api
+    environment:
+      DATABASE_URL: postgres://authuser:authpass@postgres:5432/auth_db
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
+      MAIL_SMTP_HOST: mailhog
+      MAIL_SMTP_PORT: 1025
+      MAIL_FROM: noreply@localhost
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+
+  mongo:
+    image: mongo:7
+    container_name: gateway-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  minio:
+    image: minio/minio
+    container_name: gateway-minio
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+# --- NUEVO: Servicio especializado en Metadatos (GraphQL) ---
+  metadata-api:
+    build:
+      context: ../metadata-api
+    container_name: gateway-metadata-api
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      DB_NAME: music_db
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
+      JWT_ALGORITHM: HS256
+      BUCKET_NAME: scores
+      MINIO_PUBLIC_URL: http://localhost:9000
+    depends_on:
+      mongo:
+        condition: service_started
+
+  # --- NUEVO: Servicio especializado en Archivos (REST) ---
+  files-api:
+    build:
+      context: ../files-api
+    container_name: gateway-files-api
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+      BUCKET_NAME: scores
+    depends_on:
+      minio:
+        condition: service_started
+
+  api-gateway:
+    build:
+      context: .
+    container_name: gateway-api-gateway
+    environment:
+      DEBUG: "True"
+      GATEWAY_PORT: 8000
+      USER_API_URL: http://user-api:3000
+      METADATA_API_URL: http://metadata-api:8000/storage
+      FILES_API_URL: http://files-api:8000
+      FRONTEND_URL: http://localhost:8080
+    ports:
+      - "8000:8000"
+    depends_on:
+      user-api:
+        condition: service_started
+      metadata-api:
+        condition: service_started
+      files-api:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  mongo_data:
+  minio_data:

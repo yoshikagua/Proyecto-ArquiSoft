@@ -1,0 +1,104 @@
+version: '3.9'
+
+# Módulo de Notificaciones - KuisiScore
+# Sistema de email asincrónico con RabbitMQ
+
+services:
+  # RabbitMQ: Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: notification-rabbitmq
+    ports:
+      - "5672:5672"        # AMQP port
+      - "15672:15672"      # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - notification-network
+
+  # PostgreSQL: Database para logs de emails
+  postgres:
+    image: postgres:15-alpine
+    container_name: notification-postgres
+    environment:
+      POSTGRES_DB: emails_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"        # Puerto expuesto: 5433 (evita conflictos con Prototype-2)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d emails_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notification-network
+
+  # Email Worker: Consume de cola y envío de emails
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notification-worker
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: emails_db
+      DB_USER: postgres
+      DB_PASSWORD: password
+    restart: unless-stopped
+    networks:
+      - notification-network
+
+  # Producer API: HTTP endpoint para enviar emails
+  producer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notification-producer
+    command: ["php", "-S", "0.0.0.0:8000", "router.php"]
+    ports:
+      - "8002:8000"        # Puerto expuesto: 8002 (evita conflictos con API Gateway)
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+    restart: unless-stopped
+    networks:
+      - notification-network
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+
+networks:
+  notification-network:
+    driver: bridge

@@ -1,0 +1,529 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: proyectosoft
+---
+# === SECRETOS GLOBALES ===
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-secrets
+  namespace: proyectosoft
+type: Opaque
+stringData:
+  JWT_SECRET: "your-256-bit-secret-key-here-change-in-production"
+  INTERNAL_SERVICE_SECRET: "super-secret-internal-cluster-key-change-me"
+---
+# === 1. USER API ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-api
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-api
+  template:
+    metadata:
+      labels:
+        app: user-api
+    spec:
+      containers:
+      - name: user-api
+        image: localhost:5000/proyectosoft/user-api:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: DATABASE_URL
+          value: "postgres://authuser:authpass@10.0.0.68:5432/auth_db"
+        - name: NOTIFICATION_URL
+          value: "http://notification-producer:8000"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cluster-secrets
+              key: JWT_SECRET
+        - name: INTERNAL_SERVICE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cluster-secrets
+              key: INTERNAL_SERVICE_SECRET
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-api
+  namespace: proyectosoft
+spec:
+  selector:
+    app: user-api
+  ports:
+  - protocol: TCP
+    port: 3000
+    targetPort: 3000
+---
+# === 2. PAYMENTS APP ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-app
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payments-app
+  template:
+    metadata:
+      labels:
+        app: payments-app
+    spec:
+      containers:
+      - name: payments-app
+        image: localhost:5000/proyectosoft/payments-app:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: NODE_ENV
+          value: "development"
+        - name: PORT
+          value: "3000"
+        - name: DB_HOST
+          value: "10.0.0.68"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "payments_db"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "4536141"
+        - name: FRONTEND_URL
+          value: "http://157.137.208.150:8080"
+        - name: INTERNAL_SERVICE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cluster-secrets
+              key: INTERNAL_SERVICE_SECRET
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-app
+  namespace: proyectosoft
+spec:
+  selector:
+    app: payments-app
+  ports:
+  - protocol: TCP
+    port: 3000
+    targetPort: 3000
+---
+# === 3. MF PAYMENTS ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mf-payments
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mf-payments
+  template:
+    metadata:
+      labels:
+        app: mf-payments
+    spec:
+      containers:
+      - name: mf-payments
+        image: localhost:5000/proyectosoft/mf-payments:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: NODE_ENV
+          value: "development"
+        - name: PAYMENTS_API_URL
+          value: "http://payments-app:3000"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mf-payments
+  namespace: proyectosoft
+spec:
+  selector:
+    app: mf-payments
+  ports:
+  - protocol: TCP
+    port: 3000
+    targetPort: 3000
+---
+# === 4. METADATA API ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metadata-api
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metadata-api
+  template:
+    metadata:
+      labels:
+        app: metadata-api
+    spec:
+      containers:
+      - name: metadata-api
+        image: localhost:5000/proyectosoft/metadata-api:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MONGO_URI
+          value: "mongodb://10.0.0.68:27017/tu_db"
+        - name: DB_NAME
+          value: "music_db"
+        - name: JWT_ALGORITHM
+          value: "HS256"
+        - name: BUCKET_NAME
+          value: "scores"
+        - name: MINIO_PUBLIC_URL
+          value: "http://10.43.69.237:9000"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cluster-secrets
+              key: JWT_SECRET
+        - name: INTERNAL_SERVICE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cluster-secrets
+              key: INTERNAL_SERVICE_SECRET
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata-api
+  namespace: proyectosoft
+spec:
+  selector:
+    app: metadata-api
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+---
+# === 5. FILES API ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: files-api
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: files-api
+  template:
+    metadata:
+      labels:
+        app: files-api
+    spec:
+      containers:
+      - name: files-api
+        image: localhost:5000/proyectosoft/files-api:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MINIO_ENDPOINT
+          value: "10.0.0.68:9000"
+        - name: MINIO_ROOT_USER
+          value: "admin"
+        - name: MINIO_ROOT_PASSWORD
+          value: "password"
+        - name: BUCKET_NAME
+          value: "scores"
+        - name: INTERNAL_SERVICE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cluster-secrets
+              key: INTERNAL_SERVICE_SECRET
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: files-api
+  namespace: proyectosoft
+spec:
+  selector:
+    app: files-api
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+---
+# === 6. NOTIFICATION PRODUCER ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-producer
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-producer
+  template:
+    metadata:
+      labels:
+        app: notification-producer
+    spec:
+      containers:
+      - name: notification-producer
+        image: localhost:5000/proyectosoft/notification:latest
+        imagePullPolicy: IfNotPresent
+        command: ["php", "-S", "0.0.0.0:8000", "router.php"]
+        env:
+        - name: RABBITMQ_HOST
+          value: "10.0.0.68"
+        - name: RABBITMQ_PORT
+          value: "5672"
+        - name: INTERNAL_SERVICE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cluster-secrets
+              key: INTERNAL_SERVICE_SECRET
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-producer
+  namespace: proyectosoft
+spec:
+  selector:
+    app: notification-producer
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+---
+# === 7. NOTIFICATION WORKER ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-worker
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-worker
+  template:
+    metadata:
+      labels:
+        app: notification-worker
+    spec:
+      containers:
+      - name: notification-worker
+        image: localhost:5000/proyectosoft/notification:latest
+        imagePullPolicy: IfNotPresent
+        command: ["php", "email.php"]
+        env:
+        - name: RABBITMQ_HOST
+          value: "10.0.0.68"
+        - name: RABBITMQ_PORT
+          value: "5672"
+        - name: RABBITMQ_USER
+          value: "admin"
+        - name: RABBITMQ_PASSWORD
+          value: "password"
+        - name: DB_HOST
+          value: "10.0.0.68"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "emails_db"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "4536141"
+---
+# === 8. API GATEWAY ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: localhost:5000/proyectosoft/api-gateway:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: DEBUG
+          value: "True"
+        - name: GATEWAY_PORT
+          value: "8000"
+        - name: USER_API_URL
+          value: "http://user-api:3000"
+        - name: NOTIFICATION_URL
+          value: "http://notification-producer:8000"
+        - name: METADATA_API_URL
+          value: "http://metadata-api:8000/storage"
+        - name: FILES_API_URL
+          value: "http://files-api:8000"
+        - name: FRONTEND_URL
+          value: "https://10.43.69.237:8080"
+        - name: INTERNAL_SERVICE_NAME
+          value: "api-gateway"
+        - name: INTERNAL_SERVICE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cluster-secrets
+              key: INTERNAL_SERVICE_SECRET
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: proyectosoft
+spec:
+  selector:
+    app: api-gateway
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+---
+# === 9. FRONTEND ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: localhost:5000/proyectosoft/frontend:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: VITE_API_URL
+          value: "https://10.43.69.237/api"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: proyectosoft
+spec:
+  selector:
+    app: frontend
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+---
+# === 10. WEB REVERSE PROXY ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-reverse-proxy
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-reverse-proxy
+  template:
+    metadata:
+      labels:
+        app: web-reverse-proxy
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-reverse-proxy
+  namespace: proyectosoft
+spec:
+  selector:
+    app: web-reverse-proxy
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  - name: https
+    protocol: TCP
+    port: 443
+    targetPort: 443
+---
+# === 11. STANDALONE WAF (El único expuesto a tu máquina) ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: standalone-waf
+  namespace: proyectosoft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: standalone-waf
+  template:
+    metadata:
+      labels:
+        app: standalone-waf
+    spec:
+      containers:
+      - name: modsecurity
+        image: owasp/modsecurity-crs:nginx
+        env:
+        - name: PARANOIA
+          value: "1"
+        - name: BACKEND
+          value: "http://web-reverse-proxy.proyectosoft.svc.cluster.local:80" # <-- CAMBIA ESTA LÍNEA
+        ports:
+        - containerPort: 8080
+        - containerPort: 8443
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: standalone-waf-public
+  namespace: proyectosoft
+spec:
+  type: LoadBalancer
+  selector:
+    app: standalone-waf
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 8080
+  - name: https
+    protocol: TCP
+    port: 443
+    targetPort: 8443

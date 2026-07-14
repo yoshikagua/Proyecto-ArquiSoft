@@ -1,0 +1,70 @@
+## Ignored by project
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Node.js / Bun
+node_modules/
+bun.lock
+bun.lockb
+*.lint_output.txt
+
+# Environment files
+.env
+.env.local
+.claude
+
+
+# Editor
+.vscode/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Rust
+target/
+Cargo.lock
+
+# Testing / tooling
+.pytest_cache/
+*.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vendor and build artifacts
+vendor/
+
+# Allowlist for Front-end lib
+!Front-end/src/lib/
+!Front-end/src/lib/**
+certs/ssh-key-2026-06-03.key
+certs/ssh-key-2026-06-04.key
+certs/ssh-key-2026-06-07.key
+certs/ssh-key-2026-06-06.key
